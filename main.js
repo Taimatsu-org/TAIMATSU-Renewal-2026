@@ -716,10 +716,12 @@ function initLineAnimation() {
   let pathSamples = [];
   let totalPathLen = 0;
   let wrapperHeight = 0;
+  let wrapperOffsetTop = 0;
 
   function buildPath() {
     const wrapperRect = wrapper.getBoundingClientRect();
     const wrapperTop = wrapperRect.top + window.pageYOffset;
+    wrapperOffsetTop = wrapperTop;
     const wrapperW = wrapper.offsetWidth;
     const wrapperH = wrapper.offsetHeight;
     wrapperHeight = wrapperH;
@@ -841,9 +843,14 @@ function initLineAnimation() {
       targetOffset = totalPathLen;
       currentOffset = totalPathLen;
     },
-    onUpdate: (self) => {
-      const targetY = self.progress * wrapperHeight;
-      const lengthToDraw = pathLengthAtY(targetY);
+    onUpdate: () => {
+      // Directly compute the Y inside the wrapper that corresponds to the
+      // viewport reference point (50% = center). This is independent of
+      // start/end, so bends always fire at the correct scroll position.
+      const targetY =
+        window.pageYOffset + window.innerHeight * 0.5 - wrapperOffsetTop;
+      const clamped = Math.max(0, Math.min(wrapperHeight, targetY));
+      const lengthToDraw = pathLengthAtY(clamped);
       targetOffset = totalPathLen - lengthToDraw;
     },
   });
