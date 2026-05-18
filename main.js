@@ -682,3 +682,209 @@ document.addEventListener("DOMContentLoaded", initInterviewTemplate);
     setTimeout(attachBarbaHook, 100);
   }
 })();
+
+// ============================================
+// Line Animation
+// ============================================
+const LINE_SHOW_MARKERS = false;
+const LINE_SMOOTH_FACTOR = 0.15;
+
+function cleanupLineAnimation() {
+  if (window._lineAnimST) {
+    window._lineAnimST.kill();
+    window._lineAnimST = null;
+  }
+  if (window._lineAnimRAF) {
+    cancelAnimationFrame(window._lineAnimRAF);
+    window._lineAnimRAF = null;
+  }
+}
+
+function initLineAnimation() {
+  if (!window.ScrollTrigger || !window.gsap) return;
+
+  cleanupLineAnimation();
+
+  const wrapper = document.querySelector(".line-animation-wrapper");
+  const svg = document.querySelector(".line-animation-svg");
+  const path = document.querySelector(".line-animation-path");
+  if (!wrapper || !svg || !path) return;
+
+  const sections = document.querySelectorAll("[data-line-anchor]");
+  if (!sections.length) return;
+
+  let pathSamples = [];
+  let totalPathLen = 0;
+  let wrapperHeight = 0;
+
+  function buildPath() {
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const wrapperTop = wrapperRect.top + window.pageYOffset;
+    const wrapperW = wrapper.offsetWidth;
+    const wrapperH = wrapper.offsetHeight;
+    wrapperHeight = wrapperH;
+
+    const PADDING_X = 24;
+    const LEFT_X = PADDING_X;
+    const RIGHT_X = wrapperW - PADDING_X;
+
+    function getLineX(sec, i) {
+      const align = sec.getAttribute("data-line-anchor");
+      if (align === "left") return LEFT_X;
+      if (align === "right") return RIGHT_X;
+      return i % 2 === 0 ? RIGHT_X : LEFT_X;
+    }
+
+    function getBendY(sec, secTop, secHeight) {
+      const align = sec.getAttribute("data-line-y");
+      if (!align) return secTop;
+      if (align === "top") return secTop;
+      if (align === "center") return secTop + secHeight / 2;
+      if (align === "bottom") return secTop + secHeight;
+      if (align.endsWith("%"))
+        return secTop + secHeight * (parseFloat(align) / 100);
+      if (align.startsWith("+") || align.startsWith("-"))
+        return secTop + parseFloat(align);
+      if (!isNaN(parseFloat(align))) return secTop + parseFloat(align);
+      return secTop;
+    }
+
+    let d = "";
+    const firstLineX = getLineX(sections[0], 0);
+    d += `M ${firstLineX} 0`;
+
+    sections.forEach((sec, i) => {
+      const secRect = sec.getBoundingClientRect();
+      const secTop = secRect.top + window.pageYOffset - wrapperTop;
+      const secHeight = sec.offsetHeight;
+      const bendY = getBendY(sec, secTop, secHeight);
+      const lineX = getLineX(sec, i);
+
+      d += ` L ${lineX} ${bendY}`;
+
+      if (i < sections.length - 1) {
+        const nextLineX = getLineX(sections[i + 1], i + 1);
+        d += ` L ${nextLineX} ${bendY}`;
+      }
+    });
+
+    const lastLineX = getLineX(
+      sections[sections.length - 1],
+      sections.length - 1,
+    );
+    d += ` L ${lastLineX} ${wrapperH}`;
+
+    svg.setAttribute("viewBox", `0 0 ${wrapperW} ${wrapperH}`);
+    svg.setAttribute("width", wrapperW);
+    svg.setAttribute("height", wrapperH);
+    path.setAttribute("d", d);
+
+    totalPathLen = path.getTotalLength();
+
+    pathSamples = [];
+    const sampleCount = 300;
+    for (let i = 0; i <= sampleCount; i++) {
+      const t = (i / sampleCount) * totalPathLen;
+      const point = path.getPointAtLength(t);
+      pathSamples.push({ y: point.y, length: t });
+    }
+
+    path.style.strokeDasharray = totalPathLen;
+    path.style.strokeDashoffset = totalPathLen;
+  }
+
+  function pathLengthAtY(targetY) {
+    if (targetY <= 0) return 0;
+    if (targetY >= wrapperHeight) return totalPathLen;
+
+    for (let i = pathSamples.length - 1; i >= 0; i--) {
+      if (pathSamples[i].y <= targetY) {
+        if (i === pathSamples.length - 1) return pathSamples[i].length;
+        const next = pathSamples[i + 1];
+        const yDiff = next.y - pathSamples[i].y;
+        if (yDiff <= 0) return next.length;
+        const ratio = (targetY - pathSamples[i].y) / yDiff;
+        return (
+          pathSamples[i].length + (next.length - pathSamples[i].length) * ratio
+        );
+      }
+    }
+    return 0;
+  }
+
+  buildPath();
+
+  let currentOffset = totalPathLen;
+  let targetOffset = totalPathLen;
+
+  function smoothTick() {
+    const diff = targetOffset - currentOffset;
+    if (Math.abs(diff) < 0.5) {
+      currentOffset = targetOffset;
+    } else {
+      currentOffset += diff * LINE_SMOOTH_FACTOR;
+    }
+    path.style.strokeDashoffset = currentOffset;
+    window._lineAnimRAF = requestAnimationFrame(smoothTick);
+  }
+  smoothTick();
+
+  window._lineAnimST = ScrollTrigger.create({
+    trigger: wrapper,
+    start: "top 20%",
+    end: "bottom bottom",
+    scrub: true,
+    markers: LINE_SHOW_MARKERS,
+    invalidateOnRefresh: true,
+    onRefresh: () => {
+      buildPath();
+      targetOffset = totalPathLen;
+      currentOffset = totalPathLen;
+    },
+    onUpdate: (self) => {
+      const targetY = self.progress * wrapperHeight;
+      const lengthToDraw = pathLengthAtY(targetY);
+      targetOffset = totalPathLen - lengthToDraw;
+    },
+  });
+
+  ScrollTrigger.refresh();
+
+  wrapper.querySelectorAll("img").forEach((img) => {
+    if (!img.complete) {
+      img.addEventListener(
+        "load",
+        () => {
+          if (window._lineAnimST) window._lineAnimST.refresh();
+        },
+        { once: true },
+      );
+    }
+  });
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(() => {
+      if (window._lineAnimST) window._lineAnimST.refresh();
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(initLineAnimation, 300);
+});
+
+(function attachLineBarbaHook() {
+  if (window.barba) {
+    barba.hooks.before(cleanupLineAnimation);
+    barba.hooks.afterEnter(() => {
+      setTimeout(initLineAnimation, 400);
+    });
+  } else {
+    setTimeout(attachLineBarbaHook, 100);
+  }
+})();
+
+window.addEventListener("popstate", () => {
+  setTimeout(() => {
+    if (window._lineAnimST) window._lineAnimST.refresh();
+  }, 500);
+});
