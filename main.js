@@ -710,6 +710,17 @@ function initLineAnimation() {
   const path = document.querySelector(".line-animation-path");
   if (!wrapper || !svg || !path) return;
 
+  const lockerNumber = document.querySelector(".locker-number");
+  if (lockerNumber) {
+    const wrapperParent = wrapper.offsetParent;
+    if (wrapperParent) {
+      const lockerRect = lockerNumber.getBoundingClientRect();
+      const parentRect = wrapperParent.getBoundingClientRect();
+      const topPos = lockerRect.bottom - parentRect.top + 200;
+      wrapper.style.top = `${topPos}px`;
+    }
+  }
+
   const sections = document.querySelectorAll("[data-line-anchor]");
   if (!sections.length) return;
 
