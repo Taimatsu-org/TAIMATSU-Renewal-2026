@@ -687,7 +687,7 @@ document.addEventListener("DOMContentLoaded", initInterviewTemplate);
 // Line Animation
 // ============================================
 const LINE_SHOW_MARKERS = false;
-const LINE_SMOOTH_FACTOR = 0.15;
+const LINE_SMOOTH_FACTOR = 1;
 
 function cleanupLineAnimation() {
   if (window._lineAnimST) {
@@ -777,8 +777,9 @@ function initLineAnimation() {
     }
 
     function getBendY(sec, secTop, secHeight) {
-      const align = sec.getAttribute("data-line-y");
-      if (!align) return secTop;
+      const raw = sec.getAttribute("data-line-y");
+      if (!raw) return secTop;
+      const align = raw.trim().toLowerCase();
       if (align === "top") return secTop;
       if (align === "center") return secTop + secHeight / 2;
       if (align === "bottom") return secTop + secHeight;
@@ -797,7 +798,7 @@ function initLineAnimation() {
     sections.forEach((sec, i) => {
       const secRect = sec.getBoundingClientRect();
       const secTop = secRect.top + window.pageYOffset - wrapperTop;
-      const secHeight = sec.offsetHeight;
+      const secHeight = secRect.height;
       const bendY = getBendY(sec, secTop, secHeight);
       const lineX = getLineX(sec, i);
 
