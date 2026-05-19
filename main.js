@@ -862,9 +862,12 @@ function initLineAnimation() {
         return;
       }
 
-      // Inside active range, map the viewport center to wrapper-local Y.
+      // Compute wrapper-local Y that currently sits at the viewport center.
+      // Using getBoundingClientRect() every frame avoids stale wrapperOffsetTop
+      // caused by layout shifts (images, fonts, lazy content), which is why
+      // some data-line-y="center" bends were appearing at the wrong position.
       const targetY =
-        window.pageYOffset + window.innerHeight * 0.5 - wrapperOffsetTop;
+        window.innerHeight * 0.5 - wrapper.getBoundingClientRect().top;
       const clamped = Math.max(0, Math.min(wrapperHeight, targetY));
       const lengthToDraw = pathLengthAtY(clamped);
       targetOffset = totalPathLen - lengthToDraw;
