@@ -785,8 +785,20 @@ function initLineAnimation() {
       return i % 2 === 0 ? RIGHT_X : LEFT_X;
     }
 
+    function resolveLineYValue(sec) {
+      const w = window.innerWidth;
+      const base = sec.getAttribute("data-line-y");
+      const mobile = sec.getAttribute("data-line-y-mobile");
+      const tablet = sec.getAttribute("data-line-y-tablet");
+      const desktop = sec.getAttribute("data-line-y-desktop");
+
+      if (w <= 767) return mobile || tablet || desktop || base;
+      if (w <= 991) return tablet || mobile || desktop || base;
+      return desktop || tablet || mobile || base;
+    }
+
     function getBendY(sec, secTop, secHeight) {
-      const raw = sec.getAttribute("data-line-y");
+      const raw = resolveLineYValue(sec);
       if (!raw) return secTop;
       const align = raw.trim().toLowerCase();
       if (align === "top") return secTop;
@@ -984,3 +996,17 @@ window.addEventListener("popstate", () => {
     if (window._lineAnimST) window._lineAnimST.refresh();
   }, 500);
 });
+
+//
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(initJoinedYearLabel, 200);
+});
+
+(function attachJoinedYearHook() {
+  if (window.barba) {
+    barba.hooks.afterEnter(() => setTimeout(initJoinedYearLabel, 200));
+  } else {
+    setTimeout(attachJoinedYearHook, 100);
+  }
+})();
