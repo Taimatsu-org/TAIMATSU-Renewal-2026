@@ -710,29 +710,32 @@ function initLineAnimation() {
   const path = document.querySelector(".line-animation-path");
   if (!wrapper || !svg || !path) return;
 
-  const lockerNumber = document.querySelector(".locker-number");
-  if (lockerNumber) {
+  function updateWrapperTopPosition() {
+    const lockerNumber = document.querySelector(".locker-number");
+    if (!lockerNumber) return;
+
     const wrapperParent = wrapper.offsetParent;
-    if (wrapperParent) {
-      let topInParent = 0;
-      let node = lockerNumber;
+    if (!wrapperParent) return;
 
-      while (node && node !== wrapperParent) {
-        topInParent += node.offsetTop;
-        node = node.offsetParent;
-      }
+    let topInParent = 0;
+    let node = lockerNumber;
 
-      if (node === wrapperParent) {
-        const topPos = topInParent + lockerNumber.offsetHeight + 200;
-        wrapper.style.top = `${topPos}px`;
-      }
+    while (node && node !== wrapperParent) {
+      topInParent += node.offsetTop;
+      node = node.offsetParent;
+    }
+
+    if (node === wrapperParent) {
+      const topPos = topInParent + lockerNumber.offsetHeight + 200;
+      wrapper.style.top = `${topPos}px`;
     }
   }
+
+  updateWrapperTopPosition();
 
   const sections = document.querySelectorAll("[data-line-anchor]");
   if (!sections.length) return;
 
-  let pathSamples = [];
   let totalPathLen = 0;
   let wrapperHeight = 0;
 
@@ -819,14 +822,6 @@ function initLineAnimation() {
 
     totalPathLen = path.getTotalLength();
 
-    pathSamples = [];
-    const sampleCount = 300;
-    for (let i = 0; i <= sampleCount; i++) {
-      const t = (i / sampleCount) * totalPathLen;
-      const point = path.getPointAtLength(t);
-      pathSamples.push({ y: point.y, length: t });
-    }
-
     path.style.strokeDasharray = totalPathLen;
     path.style.strokeDashoffset = totalPathLen;
   }
@@ -835,19 +830,16 @@ function initLineAnimation() {
     if (targetY <= 0) return 0;
     if (targetY >= wrapperHeight) return totalPathLen;
 
-    for (let i = pathSamples.length - 1; i >= 0; i--) {
-      if (pathSamples[i].y <= targetY) {
-        if (i === pathSamples.length - 1) return pathSamples[i].length;
-        const next = pathSamples[i + 1];
-        const yDiff = next.y - pathSamples[i].y;
-        if (yDiff <= 0) return next.length;
-        const ratio = (targetY - pathSamples[i].y) / yDiff;
-        return (
-          pathSamples[i].length + (next.length - pathSamples[i].length) * ratio
-        );
-      }
+    // Binary search on path length for robust, sub-pixel Y matching.
+    let lo = 0;
+    let hi = totalPathLen;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      const y = path.getPointAtLength(mid).y;
+      if (y < targetY) lo = mid;
+      else hi = mid;
     }
-    return 0;
+    return hi;
   }
 
   buildPath();
@@ -876,6 +868,7 @@ function initLineAnimation() {
     markers: LINE_SHOW_MARKERS,
     invalidateOnRefresh: true,
     onRefresh: () => {
+      updateWrapperTopPosition();
       buildPath();
       targetOffset = totalPathLen;
       currentOffset = totalPathLen;
