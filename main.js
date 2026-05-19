@@ -698,6 +698,14 @@ function cleanupLineAnimation() {
     cancelAnimationFrame(window._lineAnimRAF);
     window._lineAnimRAF = null;
   }
+  if (window._lineAnimRO) {
+    window._lineAnimRO.disconnect();
+    window._lineAnimRO = null;
+  }
+  if (window._lineAnimSettleTimers) {
+    window._lineAnimSettleTimers.forEach((id) => clearTimeout(id));
+    window._lineAnimSettleTimers = null;
+  }
 }
 
 function initLineAnimation() {
@@ -894,6 +902,31 @@ function initLineAnimation() {
 
   ScrollTrigger.refresh();
 
+  // First paint in Webflow can still shift after DOMContentLoaded.
+  // Run a few settle refreshes to mimic the "open devtools -> resize" fix.
+  window._lineAnimSettleTimers = [0, 120, 360, 800].map((ms) =>
+    setTimeout(() => {
+      if (window._lineAnimST) window._lineAnimST.refresh();
+    }, ms),
+  );
+
+  // Keep geometry in sync if fixed-height spacer sections are restyled
+  // by interactions, responsive rules, or async class changes.
+  if (typeof ResizeObserver !== "undefined") {
+    let roTicking = false;
+    const ro = new ResizeObserver(() => {
+      if (roTicking) return;
+      roTicking = true;
+      requestAnimationFrame(() => {
+        roTicking = false;
+        if (window._lineAnimST) window._lineAnimST.refresh();
+      });
+    });
+    ro.observe(wrapper);
+    sections.forEach((sec) => ro.observe(sec));
+    window._lineAnimRO = ro;
+  }
+
   wrapper.querySelectorAll("img").forEach((img) => {
     if (!img.complete) {
       img.addEventListener(
@@ -910,6 +943,13 @@ function initLineAnimation() {
       if (window._lineAnimST) window._lineAnimST.refresh();
     });
   }
+  window.addEventListener(
+    "load",
+    () => {
+      if (window._lineAnimST) window._lineAnimST.refresh();
+    },
+    { once: true },
+  );
 }
 
 document.addEventListener("DOMContentLoaded", () => {
