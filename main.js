@@ -746,8 +746,27 @@ function initLineAnimation() {
     const PADDING_X = 24;
     const LEFT_X = PADDING_X;
     const RIGHT_X = wrapperW - PADDING_X;
+    const CENTER_X = wrapperW / 2;
+
+    function clampX(x) {
+      return Math.max(LEFT_X, Math.min(RIGHT_X, x));
+    }
 
     function getLineX(sec, i) {
+      const customX = sec.getAttribute("data-line-x");
+      if (customX) {
+        const value = customX.trim().toLowerCase();
+        if (value === "left") return LEFT_X;
+        if (value === "right") return RIGHT_X;
+        if (value === "center") return CENTER_X;
+        if (value.endsWith("%")) {
+          const pct = parseFloat(value);
+          if (!isNaN(pct)) return clampX((wrapperW * pct) / 100);
+        }
+        const px = parseFloat(value);
+        if (!isNaN(px)) return clampX(px);
+      }
+
       const align = sec.getAttribute("data-line-anchor");
       if (align === "left") return LEFT_X;
       if (align === "right") return RIGHT_X;
