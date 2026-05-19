@@ -844,7 +844,8 @@ function initLineAnimation() {
 
   window._lineAnimST = ScrollTrigger.create({
     trigger: wrapper,
-    start: "top 20%",
+    start: () =>
+      window.matchMedia("(max-width: 767px)").matches ? "top 10%" : "top 20%",
     end: "bottom bottom",
     scrub: true,
     markers: LINE_SHOW_MARKERS,
@@ -854,10 +855,14 @@ function initLineAnimation() {
       targetOffset = totalPathLen;
       currentOffset = totalPathLen;
     },
-    onUpdate: () => {
-      // Directly compute the Y inside the wrapper that corresponds to the
-      // viewport reference point (50% = center). This is independent of
-      // start/end, so bends always fire at the correct scroll position.
+    onUpdate: (self) => {
+      // Keep the line at exact start/end states outside the active range.
+      if (!self.isActive) {
+        targetOffset = self.progress <= 0 ? totalPathLen : 0;
+        return;
+      }
+
+      // Inside active range, map the viewport center to wrapper-local Y.
       const targetY =
         window.pageYOffset + window.innerHeight * 0.5 - wrapperOffsetTop;
       const clamped = Math.max(0, Math.min(wrapperHeight, targetY));
