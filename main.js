@@ -687,7 +687,8 @@ document.addEventListener("DOMContentLoaded", initInterviewTemplate);
 // Line Animation
 // ============================================
 const LINE_SHOW_MARKERS = false;
-const LINE_SMOOTH_FACTOR = 1;
+const LINE_SMOOTH_FACTOR = 0.2;
+const LINE_DRAW_SPEED = 1.08;
 
 function cleanupLineAnimation() {
   if (window._lineAnimST) {
@@ -851,6 +852,17 @@ function initLineAnimation() {
     return hi;
   }
 
+  function offsetFromViewportCenter() {
+    const targetY =
+      window.innerHeight * 0.5 - wrapper.getBoundingClientRect().top;
+    const clamped = Math.max(0, Math.min(wrapperHeight, targetY));
+    const lengthToDraw = Math.min(
+      totalPathLen,
+      pathLengthAtY(clamped) * LINE_DRAW_SPEED,
+    );
+    return totalPathLen - lengthToDraw;
+  }
+
   buildPath();
 
   let currentOffset = totalPathLen;
@@ -876,11 +888,18 @@ function initLineAnimation() {
     scrub: true,
     markers: LINE_SHOW_MARKERS,
     invalidateOnRefresh: true,
-    onRefresh: () => {
+    onRefresh: (self) => {
       updateWrapperTopPosition();
       buildPath();
-      targetOffset = totalPathLen;
-      currentOffset = totalPathLen;
+
+      if (!self.isActive) {
+        targetOffset = self.progress <= 0 ? totalPathLen : 0;
+      } else {
+        targetOffset = offsetFromViewportCenter();
+      }
+
+      // Keep continuity after refresh to avoid sudden "draw all at once" jumps.
+      currentOffset = targetOffset;
     },
     onUpdate: (self) => {
       // Keep the line at exact start/end states outside the active range.
@@ -889,14 +908,7 @@ function initLineAnimation() {
         return;
       }
 
-      // Compute wrapper-local Y that currently sits at the viewport center.
-      // Using getBoundingClientRect() every frame avoids stale coordinates
-      // caused by layout shifts (images, fonts, lazy content).
-      const targetY =
-        window.innerHeight * 0.5 - wrapper.getBoundingClientRect().top;
-      const clamped = Math.max(0, Math.min(wrapperHeight, targetY));
-      const lengthToDraw = pathLengthAtY(clamped);
-      targetOffset = totalPathLen - lengthToDraw;
+      targetOffset = offsetFromViewportCenter();
     },
   });
 
