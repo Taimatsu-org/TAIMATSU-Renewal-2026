@@ -714,10 +714,18 @@ function initLineAnimation() {
   if (lockerNumber) {
     const wrapperParent = wrapper.offsetParent;
     if (wrapperParent) {
-      const lockerRect = lockerNumber.getBoundingClientRect();
-      const parentRect = wrapperParent.getBoundingClientRect();
-      const topPos = lockerRect.bottom - parentRect.top + 200;
-      wrapper.style.top = `${topPos}px`;
+      let topInParent = 0;
+      let node = lockerNumber;
+
+      while (node && node !== wrapperParent) {
+        topInParent += node.offsetTop;
+        node = node.offsetParent;
+      }
+
+      if (node === wrapperParent) {
+        const topPos = topInParent + lockerNumber.offsetHeight + 200;
+        wrapper.style.top = `${topPos}px`;
+      }
     }
   }
 
@@ -727,12 +735,10 @@ function initLineAnimation() {
   let pathSamples = [];
   let totalPathLen = 0;
   let wrapperHeight = 0;
-  let wrapperOffsetTop = 0;
 
   function buildPath() {
     const wrapperRect = wrapper.getBoundingClientRect();
     const wrapperTop = wrapperRect.top + window.pageYOffset;
-    wrapperOffsetTop = wrapperTop;
     const wrapperW = wrapper.offsetWidth;
     const wrapperH = wrapper.offsetHeight;
     wrapperHeight = wrapperH;
@@ -863,9 +869,8 @@ function initLineAnimation() {
       }
 
       // Compute wrapper-local Y that currently sits at the viewport center.
-      // Using getBoundingClientRect() every frame avoids stale wrapperOffsetTop
-      // caused by layout shifts (images, fonts, lazy content), which is why
-      // some data-line-y="center" bends were appearing at the wrong position.
+      // Using getBoundingClientRect() every frame avoids stale coordinates
+      // caused by layout shifts (images, fonts, lazy content).
       const targetY =
         window.innerHeight * 0.5 - wrapper.getBoundingClientRect().top;
       const clamped = Math.max(0, Math.min(wrapperHeight, targetY));
