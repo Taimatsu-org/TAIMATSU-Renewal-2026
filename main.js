@@ -757,6 +757,7 @@ function initLineAnimation() {
 
   let totalPathLen = 0;
   let wrapperHeight = 0;
+  let pathSegments = [];
 
   function buildPath() {
     const wrapperRect = wrapper.getBoundingClientRect();
@@ -823,8 +824,10 @@ function initLineAnimation() {
     }
 
     let d = "";
+    const pts = [];
     const firstLineX = getLineX(sections[0], 0);
     d += `M ${firstLineX} 0`;
+    pts.push({ x: firstLineX, y: 0 });
 
     sections.forEach((sec, i) => {
       const secRect = sec.getBoundingClientRect();
@@ -834,10 +837,12 @@ function initLineAnimation() {
       const lineX = getLineX(sec, i);
 
       d += ` L ${lineX} ${bendY}`;
+      pts.push({ x: lineX, y: bendY });
 
       if (i < sections.length - 1) {
         const nextLineX = getLineX(sections[i + 1], i + 1);
         d += ` L ${nextLineX} ${bendY}`;
+        pts.push({ x: nextLineX, y: bendY });
       }
     });
 
@@ -846,13 +851,28 @@ function initLineAnimation() {
       sections.length - 1,
     );
     d += ` L ${lastLineX} ${wrapperH}`;
+    pts.push({ x: lastLineX, y: wrapperH });
 
     svg.setAttribute("viewBox", `0 0 ${wrapperW} ${wrapperH}`);
     svg.setAttribute("width", wrapperW);
     svg.setAttribute("height", wrapperH);
     path.setAttribute("d", d);
 
-    totalPathLen = path.getTotalLength();
+    pathSegments = [];
+    totalPathLen = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1];
+      const b = pts[i];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      pathSegments.push({
+        y1: a.y,
+        y2: b.y,
+        lenStart: totalPathLen,
+        len,
+        horizontal: a.y === b.y,
+      });
+      totalPathLen += len;
+    }
 
     path.style.strokeDasharray = totalPathLen;
     path.style.strokeDashoffset = totalPathLen;
@@ -862,16 +882,15 @@ function initLineAnimation() {
     if (targetY <= 0) return 0;
     if (targetY >= wrapperHeight) return totalPathLen;
 
-    // Binary search on path length for robust, sub-pixel Y matching.
-    let lo = 0;
-    let hi = totalPathLen;
-    for (let i = 0; i < 24; i++) {
-      const mid = (lo + hi) / 2;
-      const y = path.getPointAtLength(mid).y;
-      if (y < targetY) lo = mid;
-      else hi = mid;
+    // Path Y is monotonically non-decreasing — first segment whose y2 reaches
+    // targetY is the one containing it.
+    for (let i = 0; i < pathSegments.length; i++) {
+      const seg = pathSegments[i];
+      if (seg.y2 < targetY) continue;
+      if (seg.horizontal) return seg.lenStart;
+      return seg.lenStart + seg.len * ((targetY - seg.y1) / (seg.y2 - seg.y1));
     }
-    return hi;
+    return totalPathLen;
   }
 
   function offsetFromViewportCenter() {
