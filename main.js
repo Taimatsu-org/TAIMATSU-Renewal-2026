@@ -820,36 +820,42 @@ function initLineAnimation() {
       return secTop;
     }
 
-    let d = "";
-    const customStartX = getStartX();
-    const firstLineX = getLineX(sections[0], 0);
-    const startX = customStartX !== null ? customStartX : firstLineX;
-    d += `M ${startX} 0`;
-
-    sections.forEach((sec, i) => {
+    const bendYs = sections.map((sec) => {
       const secRect = sec.getBoundingClientRect();
       const secTop = secRect.top + window.pageYOffset - wrapperTop;
-      const secHeight = secRect.height;
-      const bendY = getBendY(sec, secTop, secHeight);
-      const lineX = getLineX(sec, i);
-
-      if (i === 0 && customStartX !== null && customStartX !== lineX) {
-        d += ` L ${customStartX} ${bendY}`;
-      }
-
-      d += ` L ${lineX} ${bendY}`;
-
-      if (i < sections.length - 1) {
-        const nextLineX = getLineX(sections[i + 1], i + 1);
-        d += ` L ${nextLineX} ${bendY}`;
-      }
+      return getBendY(sec, secTop, secRect.height);
     });
 
-    const lastLineX = getLineX(
-      sections[sections.length - 1],
-      sections.length - 1,
-    );
-    d += ` L ${lastLineX} ${wrapperH}`;
+    let d = "";
+    const customStartX = getStartX();
+
+    if (customStartX !== null) {
+      // sec[i].lineX = X for the vertical segment AFTER bendY[i].
+      d += `M ${customStartX} 0`;
+      d += ` L ${customStartX} ${bendYs[0]}`;
+      sections.forEach((sec, i) => {
+        const lineX = getLineX(sec, i);
+        d += ` L ${lineX} ${bendYs[i]}`;
+        const nextY = i < sections.length - 1 ? bendYs[i + 1] : wrapperH;
+        d += ` L ${lineX} ${nextY}`;
+      });
+    } else {
+      const firstLineX = getLineX(sections[0], 0);
+      d += `M ${firstLineX} 0`;
+      sections.forEach((sec, i) => {
+        const lineX = getLineX(sec, i);
+        d += ` L ${lineX} ${bendYs[i]}`;
+        if (i < sections.length - 1) {
+          const nextLineX = getLineX(sections[i + 1], i + 1);
+          d += ` L ${nextLineX} ${bendYs[i]}`;
+        }
+      });
+      const lastLineX = getLineX(
+        sections[sections.length - 1],
+        sections.length - 1,
+      );
+      d += ` L ${lastLineX} ${wrapperH}`;
+    }
 
     svg.setAttribute("viewBox", `0 0 ${wrapperW} ${wrapperH}`);
     svg.setAttribute("width", wrapperW);
