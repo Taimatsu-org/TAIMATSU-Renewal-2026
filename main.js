@@ -792,9 +792,9 @@ function initLineAnimation() {
       const tablet = sec.getAttribute("data-line-y-tablet");
       const desktop = sec.getAttribute("data-line-y-desktop");
 
-      if (w <= 767) return mobile || tablet || desktop || base;
-      if (w <= 991) return tablet || mobile || desktop || base;
-      return desktop || tablet || mobile || base;
+      if (w <= 767) return mobile || base;
+      if (w <= 991) return tablet || base;
+      return desktop || base;
     }
 
     function getBendY(sec, secTop, secHeight) {
