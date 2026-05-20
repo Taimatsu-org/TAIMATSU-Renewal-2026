@@ -764,25 +764,33 @@ function initLineAnimation() {
       return Math.max(LEFT_X, Math.min(RIGHT_X, x));
     }
 
-    function getLineX(sec, i) {
-      const customX = sec.getAttribute("data-line-x");
-      if (customX) {
-        const value = customX.trim().toLowerCase();
-        if (value === "left") return LEFT_X;
-        if (value === "right") return RIGHT_X;
-        if (value === "center") return CENTER_X;
-        if (value.endsWith("%")) {
-          const pct = parseFloat(value);
-          if (!isNaN(pct)) return clampX((wrapperW * pct) / 100);
-        }
-        const px = parseFloat(value);
-        if (!isNaN(px)) return clampX(px);
+    function parseXValue(raw) {
+      if (!raw) return null;
+      const value = raw.trim().toLowerCase();
+      if (value === "left") return LEFT_X;
+      if (value === "right") return RIGHT_X;
+      if (value === "center") return CENTER_X;
+      if (value.endsWith("%")) {
+        const pct = parseFloat(value);
+        if (!isNaN(pct)) return clampX((wrapperW * pct) / 100);
       }
+      const px = parseFloat(value);
+      if (!isNaN(px)) return clampX(px);
+      return null;
+    }
+
+    function getLineX(sec, i) {
+      const parsed = parseXValue(sec.getAttribute("data-line-x"));
+      if (parsed !== null) return parsed;
 
       const align = sec.getAttribute("data-line-anchor");
       if (align === "left") return LEFT_X;
       if (align === "right") return RIGHT_X;
       return i % 2 === 0 ? RIGHT_X : LEFT_X;
+    }
+
+    function getStartX() {
+      return parseXValue(wrapper.getAttribute("data-line-x-start"));
     }
 
     function resolveLineYValue(sec) {
@@ -813,8 +821,10 @@ function initLineAnimation() {
     }
 
     let d = "";
+    const customStartX = getStartX();
     const firstLineX = getLineX(sections[0], 0);
-    d += `M ${firstLineX} 0`;
+    const startX = customStartX !== null ? customStartX : firstLineX;
+    d += `M ${startX} 0`;
 
     sections.forEach((sec, i) => {
       const secRect = sec.getBoundingClientRect();
@@ -822,6 +832,10 @@ function initLineAnimation() {
       const secHeight = secRect.height;
       const bendY = getBendY(sec, secTop, secHeight);
       const lineX = getLineX(sec, i);
+
+      if (i === 0 && customStartX !== null && customStartX !== lineX) {
+        d += ` L ${customStartX} ${bendY}`;
+      }
 
       d += ` L ${lineX} ${bendY}`;
 
