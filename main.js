@@ -764,33 +764,25 @@ function initLineAnimation() {
       return Math.max(LEFT_X, Math.min(RIGHT_X, x));
     }
 
-    function parseXValue(raw) {
-      if (!raw) return null;
-      const value = raw.trim().toLowerCase();
-      if (value === "left") return LEFT_X;
-      if (value === "right") return RIGHT_X;
-      if (value === "center") return CENTER_X;
-      if (value.endsWith("%")) {
-        const pct = parseFloat(value);
-        if (!isNaN(pct)) return clampX((wrapperW * pct) / 100);
-      }
-      const px = parseFloat(value);
-      if (!isNaN(px)) return clampX(px);
-      return null;
-    }
-
     function getLineX(sec, i) {
-      const parsed = parseXValue(sec.getAttribute("data-line-x"));
-      if (parsed !== null) return parsed;
+      const customX = sec.getAttribute("data-line-x");
+      if (customX) {
+        const value = customX.trim().toLowerCase();
+        if (value === "left") return LEFT_X;
+        if (value === "right") return RIGHT_X;
+        if (value === "center") return CENTER_X;
+        if (value.endsWith("%")) {
+          const pct = parseFloat(value);
+          if (!isNaN(pct)) return clampX((wrapperW * pct) / 100);
+        }
+        const px = parseFloat(value);
+        if (!isNaN(px)) return clampX(px);
+      }
 
       const align = sec.getAttribute("data-line-anchor");
       if (align === "left") return LEFT_X;
       if (align === "right") return RIGHT_X;
       return i % 2 === 0 ? RIGHT_X : LEFT_X;
-    }
-
-    function getStartX() {
-      return parseXValue(wrapper.getAttribute("data-line-x-start"));
     }
 
     function resolveLineYValue(sec) {
@@ -820,43 +812,30 @@ function initLineAnimation() {
       return secTop;
     }
 
-    const bendYs = [];
-    sections.forEach((sec) => {
+    let d = "";
+    const firstLineX = getLineX(sections[0], 0);
+    d += `M ${firstLineX} 0`;
+
+    sections.forEach((sec, i) => {
       const secRect = sec.getBoundingClientRect();
       const secTop = secRect.top + window.pageYOffset - wrapperTop;
-      bendYs.push(getBendY(sec, secTop, secRect.height));
+      const secHeight = secRect.height;
+      const bendY = getBendY(sec, secTop, secHeight);
+      const lineX = getLineX(sec, i);
+
+      d += ` L ${lineX} ${bendY}`;
+
+      if (i < sections.length - 1) {
+        const nextLineX = getLineX(sections[i + 1], i + 1);
+        d += ` L ${nextLineX} ${bendY}`;
+      }
     });
 
-    let d = "";
-    const customStartX = getStartX();
-
-    if (customStartX !== null) {
-      // sec[i].lineX = X for the vertical segment AFTER bendY[i].
-      d += `M ${customStartX} 0`;
-      d += ` L ${customStartX} ${bendYs[0]}`;
-      sections.forEach((sec, i) => {
-        const lineX = getLineX(sec, i);
-        d += ` L ${lineX} ${bendYs[i]}`;
-        const nextY = i < sections.length - 1 ? bendYs[i + 1] : wrapperH;
-        d += ` L ${lineX} ${nextY}`;
-      });
-    } else {
-      const firstLineX = getLineX(sections[0], 0);
-      d += `M ${firstLineX} 0`;
-      sections.forEach((sec, i) => {
-        const lineX = getLineX(sec, i);
-        d += ` L ${lineX} ${bendYs[i]}`;
-        if (i < sections.length - 1) {
-          const nextLineX = getLineX(sections[i + 1], i + 1);
-          d += ` L ${nextLineX} ${bendYs[i]}`;
-        }
-      });
-      const lastLineX = getLineX(
-        sections[sections.length - 1],
-        sections.length - 1,
-      );
-      d += ` L ${lastLineX} ${wrapperH}`;
-    }
+    const lastLineX = getLineX(
+      sections[sections.length - 1],
+      sections.length - 1,
+    );
+    d += ` L ${lastLineX} ${wrapperH}`;
 
     svg.setAttribute("viewBox", `0 0 ${wrapperW} ${wrapperH}`);
     svg.setAttribute("width", wrapperW);
