@@ -688,7 +688,7 @@ document.addEventListener("DOMContentLoaded", initInterviewTemplate);
 // ============================================
 const LINE_SHOW_MARKERS = false;
 const LINE_SMOOTH_FACTOR = 0.2;
-const LINE_DRAW_SPEED = 1.15;
+const LINE_DRAW_SPEED = 1.05;
 
 function cleanupLineAnimation() {
   if (window._lineAnimST) {
