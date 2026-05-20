@@ -820,10 +820,11 @@ function initLineAnimation() {
       return secTop;
     }
 
-    const bendYs = sections.map((sec) => {
+    const bendYs = [];
+    sections.forEach((sec) => {
       const secRect = sec.getBoundingClientRect();
       const secTop = secRect.top + window.pageYOffset - wrapperTop;
-      return getBendY(sec, secTop, secRect.height);
+      bendYs.push(getBendY(sec, secTop, secRect.height));
     });
 
     let d = "";
