@@ -154,6 +154,7 @@ function initRecruitPageFeatures() {
 
     const SLIDE_DURATION = 5000;
     let isSwitching = false;
+    let activeThumbSvg = null;
 
     const staffVoicesThumbs = new Swiper(".staff-voices-thumbs", {
       slidesPerView: 4,
@@ -177,6 +178,11 @@ function initRecruitPageFeatures() {
         svg.style.clipPath = "inset(0 100% 0 0)";
       });
     }
+    function refreshActiveThumbSvg() {
+      activeThumbSvg = document.querySelector(
+        ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
+      );
+    }
 
     let resizeTimer;
     window._staffVoicesResize = () => {
@@ -196,14 +202,11 @@ function initRecruitPageFeatures() {
       on: {
         init() {
           setupAllPaths();
+          refreshActiveThumbSvg();
         },
         autoplayTimeLeft(s, time, progress) {
-          if (isSwitching) return;
-          const svg = document.querySelector(
-            ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
-          );
-          if (!svg) return;
-          svg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
+          if (isSwitching || !activeThumbSvg) return;
+          activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
         },
         slideChangeTransitionStart() {
           isSwitching = true;
@@ -211,6 +214,7 @@ function initRecruitPageFeatures() {
         slideChangeTransitionEnd() {
           hideAllLines();
           isSwitching = false;
+          refreshActiveThumbSvg();
           if (window.innerWidth < 992) {
             staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
           }
@@ -597,6 +601,7 @@ function initInterviewTemplate() {
   if (document.querySelector(".staff-voices-swiper")) {
     const SLIDE_DURATION = 5000;
     let isSwitching = false;
+    let activeThumbSvg = null;
 
     const staffVoicesThumbs = new Swiper(".staff-voices-thumbs", {
       slidesPerView: 4,
@@ -620,6 +625,11 @@ function initInterviewTemplate() {
         svg.style.clipPath = "inset(0 100% 0 0)";
       });
     }
+    function refreshActiveThumbSvg() {
+      activeThumbSvg = document.querySelector(
+        ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
+      );
+    }
 
     let resizeTimer;
     const staffResize = () => {
@@ -640,14 +650,11 @@ function initInterviewTemplate() {
       on: {
         init() {
           setupAllPaths();
+          refreshActiveThumbSvg();
         },
         autoplayTimeLeft(s, time, progress) {
-          if (isSwitching) return;
-          const svg = document.querySelector(
-            ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
-          );
-          if (!svg) return;
-          svg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
+          if (isSwitching || !activeThumbSvg) return;
+          activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
         },
         slideChangeTransitionStart() {
           isSwitching = true;
@@ -655,6 +662,7 @@ function initInterviewTemplate() {
         slideChangeTransitionEnd() {
           hideAllLines();
           isSwitching = false;
+          refreshActiveThumbSvg();
           if (window.innerWidth < 992) {
             staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
           }
@@ -883,16 +891,24 @@ function initLineAnimation() {
   let targetOffset = totalPathLen;
 
   function smoothTick() {
+    window._lineAnimRAF = null;
     const diff = targetOffset - currentOffset;
     if (Math.abs(diff) < 0.5) {
       currentOffset = targetOffset;
-    } else {
-      currentOffset += diff * LINE_SMOOTH_FACTOR;
+      path.style.strokeDashoffset = currentOffset;
+      return;
     }
+    currentOffset += diff * LINE_SMOOTH_FACTOR;
     path.style.strokeDashoffset = currentOffset;
     window._lineAnimRAF = requestAnimationFrame(smoothTick);
   }
-  smoothTick();
+
+  function scheduleTick() {
+    if (window._lineAnimRAF) return;
+    window._lineAnimRAF = requestAnimationFrame(smoothTick);
+  }
+
+  path.style.strokeDashoffset = currentOffset;
 
   window._lineAnimST = ScrollTrigger.create({
     trigger: wrapper,
@@ -914,15 +930,16 @@ function initLineAnimation() {
 
       // Keep continuity after refresh to avoid sudden "draw all at once" jumps.
       currentOffset = targetOffset;
+      path.style.strokeDashoffset = currentOffset;
     },
     onUpdate: (self) => {
       // Keep the line at exact start/end states outside the active range.
       if (!self.isActive) {
         targetOffset = self.progress <= 0 ? totalPathLen : 0;
-        return;
+      } else {
+        targetOffset = offsetFromViewportCenter();
       }
-
-      targetOffset = offsetFromViewportCenter();
+      scheduleTick();
     },
   });
 
