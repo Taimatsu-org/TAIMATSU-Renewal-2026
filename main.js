@@ -1063,15 +1063,26 @@ function initTabFlashReveal() {
     if (tabLink.dataset.tabAnimInit) return;
     tabLink.dataset.tabAnimInit = "true";
     tabLink.addEventListener("click", function () {
-      setTimeout(function () {
-        var activePane = document.querySelector(".w-tab-pane.w--tab-active");
-        if (!activePane) return;
-        activePane.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
+      // 點擊瞬間：找到目標 pane，立刻隱藏文字
+      var tabId = tabLink.getAttribute("data-w-tab");
+      var targetPane = tabId
+        ? document.querySelector('.w-tab-pane[data-w-tab="' + tabId + '"]')
+        : null;
+      if (targetPane) {
+        targetPane.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
           if (el._splitInstance) {
             el._splitInstance.revert();
             el._splitInstance = null;
           }
           el.removeAttribute("data-flash-initialized");
+          gsap.set(el, { visibility: "hidden" });
+        });
+      }
+      // 300ms 後：Webflow tab 切換完成，開始播動畫
+      setTimeout(function () {
+        var activePane = document.querySelector(".w-tab-pane.w--tab-active");
+        if (!activePane) return;
+        activePane.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
           var maxDur = parseFloat(el.dataset.flashDuration) || 1;
           var ease = el.dataset.flashEase || "power2.out";
           var split = new SplitText(el, { type: "words,chars" });
