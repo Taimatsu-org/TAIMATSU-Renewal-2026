@@ -1057,3 +1057,17 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(attachJoinedYearHook, 100);
   }
 })();
+
+(function attachWebflowReinitHook() {
+  if (window.barba) {
+    barba.hooks.afterEnter(() => {
+      if (window.Webflow) {
+        window.Webflow.destroy();
+        window.Webflow.ready();
+        window.Webflow.require("ix2").init();
+      }
+    });
+  } else {
+    setTimeout(attachWebflowReinitHook, 100);
+  }
+})();
