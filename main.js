@@ -1035,7 +1035,16 @@ window.addEventListener("popstate", () => {
   }, 500);
 });
 
-//
+function initJoinedYearLabel() {
+  const currentYear = new Date().getFullYear();
+  document.querySelectorAll(".joined-year").forEach((yearEl) => {
+    const joinedYear = parseInt(yearEl.textContent.trim(), 10);
+    const card = yearEl.closest(".div-block-16");
+    const classJoinedEl = card?.querySelector(".class-joined");
+    if (!classJoinedEl) return;
+    classJoinedEl.textContent = joinedYear === currentYear ? "/joined" : "/class of";
+  });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(initJoinedYearLabel, 200);
