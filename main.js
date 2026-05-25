@@ -59,6 +59,7 @@ function initRecruitPageFeatures() {
             openItem.classList.remove("is-open");
           });
         if (!isCurrentlyOpen) {
+          clickedWrapper.style.height = "100%";
           clickedWrapper.style.maxHeight = "9999px";
           clickedItem.classList.add("is-open");
           if (clickedIcon) clickedIcon.classList.add("is-open");
