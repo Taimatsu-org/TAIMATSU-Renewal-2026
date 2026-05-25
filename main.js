@@ -1045,8 +1045,8 @@ function initTabFromURL() {
 }
 
 function initLoadMoreIX2Reinit() {
-  const listEl = document.querySelector('[fs-list-element="list"]');
-  if (!listEl) return;
+  const listEls = document.querySelectorAll('[fs-list-element="list"]');
+  if (!listEls.length) return;
 
   let timer;
   const observer = new MutationObserver(() => {
@@ -1055,10 +1055,15 @@ function initLoadMoreIX2Reinit() {
       if (window.Webflow) {
         window.Webflow.require("ix2").init();
       }
+      if (window.ScrollTrigger) {
+        ScrollTrigger.refresh();
+      }
     }, 200);
   });
 
-  observer.observe(listEl, { childList: true });
+  listEls.forEach((listEl) => {
+    observer.observe(listEl, { childList: true });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
