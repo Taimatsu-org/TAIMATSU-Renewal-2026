@@ -7,6 +7,15 @@ window.FinsweetAttributes.push([
       ?.getAttribute("data-barba-namespace");
     if (ns !== "recruit") return;
     setFinsweetFilterValues();
+
+    // Load More で新しいアイテムが追加されたら IX2 を reinit
+    lists.forEach((list) => {
+      list.on("renderitems", () => {
+        if (window.Webflow) {
+          window.Webflow.require("ix2").init();
+        }
+      });
+    });
   },
 ]);
 
