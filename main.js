@@ -8,14 +8,6 @@ window.FinsweetAttributes.push([
     if (ns !== "recruit") return;
     setFinsweetFilterValues();
 
-    // Load More で新しいアイテムが追加されたら IX2 を reinit
-    lists.forEach((list) => {
-      list.on("renderitems", () => {
-        if (window.Webflow) {
-          window.Webflow.require("ix2").init();
-        }
-      });
-    });
   },
 ]);
 
@@ -1052,7 +1044,25 @@ function initTabFromURL() {
   );
 }
 
+function initLoadMoreIX2Reinit() {
+  const listEl = document.querySelector('[fs-list-element="list"]');
+  if (!listEl) return;
+
+  let timer;
+  const observer = new MutationObserver(() => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (window.Webflow) {
+        window.Webflow.require("ix2").init();
+      }
+    }, 200);
+  });
+
+  observer.observe(listEl, { childList: true });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(initLoadMoreIX2Reinit, 500);
   setTimeout(initTabFromURL, 200);
 });
 
