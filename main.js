@@ -54,13 +54,12 @@ function initRecruitPageFeatures() {
               ".position-detail-wrapper",
             );
             const openIcon = openItem.querySelector(".position-icon-ver");
-            if (openWrapper) openWrapper.style.height = "0px";
+            if (openWrapper) openWrapper.style.maxHeight = "0px";
             if (openIcon) openIcon.classList.remove("is-open");
             openItem.classList.remove("is-open");
           });
         if (!isCurrentlyOpen) {
-          const innerContent = clickedWrapper.firstElementChild;
-          clickedWrapper.style.height = innerContent.scrollHeight + "px";
+          clickedWrapper.style.maxHeight = "9999px";
           clickedItem.classList.add("is-open");
           if (clickedIcon) clickedIcon.classList.add("is-open");
         }
