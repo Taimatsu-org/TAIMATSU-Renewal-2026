@@ -1109,7 +1109,12 @@ function initTabFlashReveal() {
             gsap.set(el, { visibility: "hidden" });
           });
       }
-      // 300ms 後：Webflow tab 切換完成，開始播動畫
+      setTimeout(function () {
+        if (window.FinsweetAttributes?.modules?.list) {
+          window.FinsweetAttributes.modules.list.restart();
+        }
+      }, 50);
+
       setTimeout(function () {
         var activePane = document.querySelector(".w-tab-pane.w--tab-active");
         if (!activePane) return;
