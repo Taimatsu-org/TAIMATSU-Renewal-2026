@@ -1035,6 +1035,34 @@ window.addEventListener("popstate", () => {
   }, 500);
 });
 
+function initTabFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const tabId = params.get("tab");
+  if (!tabId) return;
+  const tabLink = document.querySelector(`.w-tab-link[data-tab-id="${tabId}"]`);
+  if (!tabLink) return;
+  tabLink.click();
+  const url = new URL(window.location);
+  url.searchParams.delete("tab");
+  history.replaceState(
+    null,
+    null,
+    url.pathname + (url.search === "?" ? "" : url.search),
+  );
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(initTabFromURL, 200);
+});
+
+(function attachTabFromURLHook() {
+  if (window.barba) {
+    barba.hooks.afterEnter(() => setTimeout(initTabFromURL, 200));
+  } else {
+    setTimeout(attachTabFromURLHook, 100);
+  }
+})();
+
 function initJoinedYearLabel() {
   const currentYear = new Date().getFullYear();
   document.querySelectorAll(".joined-year").forEach((yearEl) => {
@@ -1042,7 +1070,8 @@ function initJoinedYearLabel() {
     const card = yearEl.closest(".div-block-16");
     const classJoinedEl = card?.querySelector(".class-joined");
     if (!classJoinedEl) return;
-    classJoinedEl.textContent = joinedYear === currentYear ? "/joined" : "/class of";
+    classJoinedEl.textContent =
+      joinedYear === currentYear ? "/joined" : "/class of";
   });
 }
 
@@ -1069,50 +1098,54 @@ function initTabFlashReveal() {
         ? document.querySelector('.w-tab-pane[data-w-tab="' + tabId + '"]')
         : null;
       if (targetPane) {
-        targetPane.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
-          if (el._splitInstance) {
-            el._splitInstance.revert();
-            el._splitInstance = null;
-          }
-          el.removeAttribute("data-flash-initialized");
-          gsap.set(el, { visibility: "hidden" });
-        });
+        targetPane
+          .querySelectorAll("[data-flash-reveal]")
+          .forEach(function (el) {
+            if (el._splitInstance) {
+              el._splitInstance.revert();
+              el._splitInstance = null;
+            }
+            el.removeAttribute("data-flash-initialized");
+            gsap.set(el, { visibility: "hidden" });
+          });
       }
       // 300ms 後：Webflow tab 切換完成，開始播動畫
       setTimeout(function () {
         var activePane = document.querySelector(".w-tab-pane.w--tab-active");
         if (!activePane) return;
-        activePane.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
-          var maxDur = parseFloat(el.dataset.flashDuration) || 1;
-          var ease = el.dataset.flashEase || "power2.out";
-          var split = new SplitText(el, { type: "words,chars" });
-          var chars = split.chars;
-          el._splitInstance = split;
-          el.setAttribute("data-flash-initialized", "true");
-          gsap.set(el, { visibility: "visible" });
-          gsap.set(chars, { autoAlpha: 0 });
-          var stag = Math.max(0.01, (maxDur - 0.6) / chars.length);
-          gsap.to(chars, {
-            autoAlpha: 1,
-            duration: 0.6,
-            ease: ease,
-            stagger: {
-              each: stag,
-              from: "random",
-              onStart: function () {
-                var char = this.targets()[0];
-                var flashes = Math.floor(Math.random() * 3) + 1;
-                if (flashes === 1) return;
-                var ftl = gsap.timeline();
-                for (var i = 0; i < flashes - 1; i++) {
-                  ftl
-                    .to(char, { autoAlpha: 1, duration: 0.08, ease: "none" })
-                    .to(char, { autoAlpha: 0, duration: 0.08, ease: "none" });
-                }
+        activePane
+          .querySelectorAll("[data-flash-reveal]")
+          .forEach(function (el) {
+            var maxDur = parseFloat(el.dataset.flashDuration) || 1;
+            var ease = el.dataset.flashEase || "power2.out";
+            var split = new SplitText(el, { type: "words,chars" });
+            var chars = split.chars;
+            el._splitInstance = split;
+            el.setAttribute("data-flash-initialized", "true");
+            gsap.set(el, { visibility: "visible" });
+            gsap.set(chars, { autoAlpha: 0 });
+            var stag = Math.max(0.01, (maxDur - 0.6) / chars.length);
+            gsap.to(chars, {
+              autoAlpha: 1,
+              duration: 0.6,
+              ease: ease,
+              stagger: {
+                each: stag,
+                from: "random",
+                onStart: function () {
+                  var char = this.targets()[0];
+                  var flashes = Math.floor(Math.random() * 3) + 1;
+                  if (flashes === 1) return;
+                  var ftl = gsap.timeline();
+                  for (var i = 0; i < flashes - 1; i++) {
+                    ftl
+                      .to(char, { autoAlpha: 1, duration: 0.08, ease: "none" })
+                      .to(char, { autoAlpha: 0, duration: 0.08, ease: "none" });
+                  }
+                },
               },
-            },
+            });
           });
-        });
       }, 300);
     });
   });
