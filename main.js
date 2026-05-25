@@ -50,17 +50,11 @@ function initRecruitPageFeatures() {
         document
           .querySelectorAll(".position-item.is-open")
           .forEach(function (openItem) {
-            const openWrapper = openItem.querySelector(
-              ".position-detail-wrapper",
-            );
             const openIcon = openItem.querySelector(".position-icon-ver");
-            if (openWrapper) openWrapper.style.maxHeight = "0px";
             if (openIcon) openIcon.classList.remove("is-open");
             openItem.classList.remove("is-open");
           });
         if (!isCurrentlyOpen) {
-          clickedWrapper.style.height = "100%";
-          clickedWrapper.style.maxHeight = "9999px";
           clickedItem.classList.add("is-open");
           if (clickedIcon) clickedIcon.classList.add("is-open");
         }
@@ -77,9 +71,7 @@ function initRecruitPageFeatures() {
         document
           .querySelectorAll(".position-item.is-open")
           .forEach(function (item) {
-            const wrapper = item.querySelector(".position-detail-wrapper");
             const icon = item.querySelector(".position-icon-ver");
-            if (wrapper) wrapper.style.height = "0px";
             if (icon) icon.classList.remove("is-open");
             item.classList.remove("is-open");
           });
