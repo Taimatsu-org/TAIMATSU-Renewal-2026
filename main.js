@@ -1110,12 +1110,6 @@ function initTabFlashReveal() {
           });
       }
       setTimeout(function () {
-        if (window.FinsweetAttributes?.modules?.list) {
-          window.FinsweetAttributes.modules.list.restart();
-        }
-      }, 50);
-
-      setTimeout(function () {
         var activePane = document.querySelector(".w-tab-pane.w--tab-active");
         if (!activePane) return;
         activePane
