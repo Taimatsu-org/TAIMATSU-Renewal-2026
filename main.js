@@ -1054,12 +1054,10 @@ function initLoadMoreIX2Reinit() {
     timer = setTimeout(() => {
       if (window.Webflow) {
         window.Webflow.require("ix2").init();
+        setTimeout(() => {
+          window.dispatchEvent(new Event("scroll"));
+        }, 50);
       }
-      setTimeout(() => {
-        if (window.ScrollTrigger) {
-          ScrollTrigger.refresh(true);
-        }
-      }, 150);
     }, 200);
   });
 
