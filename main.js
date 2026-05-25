@@ -1055,9 +1055,11 @@ function initLoadMoreIX2Reinit() {
       if (window.Webflow) {
         window.Webflow.require("ix2").init();
       }
-      if (window.ScrollTrigger) {
-        ScrollTrigger.refresh();
-      }
+      setTimeout(() => {
+        if (window.ScrollTrigger) {
+          ScrollTrigger.refresh(true);
+        }
+      }, 150);
     }, 200);
   });
 
