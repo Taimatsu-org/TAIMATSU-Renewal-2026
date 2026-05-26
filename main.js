@@ -752,6 +752,16 @@ function initLineAnimation() {
   let pathSegments = [];
 
   function buildPath() {
+    const savedTransforms = [];
+    sections.forEach((sec) => {
+      [sec, sec.parentElement].forEach((el) => {
+        if (el && el.style && el.style.transform) {
+          savedTransforms.push({ el, value: el.style.transform });
+          el.style.transform = "";
+        }
+      });
+    });
+
     const wrapperRect = wrapper.getBoundingClientRect();
     const wrapperTop = wrapperRect.top + window.pageYOffset;
     const wrapperW = wrapper.offsetWidth;
@@ -868,6 +878,11 @@ function initLineAnimation() {
 
     path.style.strokeDasharray = totalPathLen;
     path.style.strokeDashoffset = totalPathLen;
+
+    // 退避した IX2 transform を即座に復元（次の描画フレーム前なので画面に変化なし）
+    savedTransforms.forEach(({ el, value }) => {
+      el.style.transform = value;
+    });
   }
 
   function pathLengthAtY(targetY) {
