@@ -751,18 +751,9 @@ function initLineAnimation() {
   let wrapperHeight = 0;
   let pathSegments = [];
 
-  function getAbsoluteOffsetTop(el) {
-    let top = 0;
-    let node = el;
-    while (node && node !== document.documentElement) {
-      top += node.offsetTop;
-      node = node.offsetParent;
-    }
-    return top;
-  }
-
   function buildPath() {
-    const wrapperTop = getAbsoluteOffsetTop(wrapper);
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const wrapperTop = wrapperRect.top + window.pageYOffset;
     const wrapperW = wrapper.offsetWidth;
     const wrapperH = wrapper.offsetHeight;
     wrapperHeight = wrapperH;
@@ -831,8 +822,9 @@ function initLineAnimation() {
     pts.push({ x: firstLineX, y: 0 });
 
     sections.forEach((sec, i) => {
-      const secTop = getAbsoluteOffsetTop(sec) - wrapperTop;
-      const secHeight = sec.offsetHeight;
+      const secRect = sec.getBoundingClientRect();
+      const secTop = secRect.top + window.pageYOffset - wrapperTop;
+      const secHeight = secRect.height;
       const bendY = getBendY(sec, secTop, secHeight);
       const lineX = getLineX(sec, i);
 
@@ -1013,6 +1005,18 @@ function initLineAnimation() {
       if (window._lineAnimST) window._lineAnimST.refresh();
     },
     { once: true },
+  );
+
+  // IX2 の入場アニメーションは最初のスクロール時に transform を解除する。
+  // 初回スクロール後に一度だけ buildPath() を再実行して正確な位置を確保する。
+  window.addEventListener(
+    "scroll",
+    () => {
+      setTimeout(() => {
+        if (window._lineAnimST) window._lineAnimST.refresh();
+      }, 80);
+    },
+    { once: true, passive: true },
   );
 }
 
