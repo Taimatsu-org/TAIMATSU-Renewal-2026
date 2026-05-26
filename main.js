@@ -738,7 +738,7 @@ function initLineAnimation() {
 
     if (node === wrapperParent) {
       const topPos = topInParent + lockerNumber.offsetHeight + 200;
-      wrapper.style.top = `${topPos}px`;
+      // wrapper.style.top = `${topPos}px`;
     }
   }
 
