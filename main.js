@@ -1044,49 +1044,7 @@ function initTabFromURL() {
   );
 }
 
-function initLoadMoreHoverOnly() {
-  const listEls = document.querySelectorAll('[fs-list-element="list"]');
-  if (!listEls.length) return;
-
-  let timer;
-  const observer = new MutationObserver((mutations) => {
-    const hasNewNodes = mutations.some((m) => m.addedNodes.length > 0);
-    if (!hasNewNodes) return;
-
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (!window.Webflow) return;
-
-      // ix2.init() 前：把所有元素的 inline style 存起來
-      const snapshot = new Map();
-      document.querySelectorAll("[style]").forEach((el) => {
-        snapshot.set(el, el.getAttribute("style"));
-      });
-
-      window.Webflow.require("ix2").init();
-
-      // ix2.init() 後：立刻還原所有舊元素的 style
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          snapshot.forEach((style, el) => {
-            if (style) {
-              el.setAttribute("style", style);
-            } else {
-              el.removeAttribute("style");
-            }
-          });
-        });
-      });
-    }, 200);
-  });
-
-  listEls.forEach((listEl) => {
-    observer.observe(listEl, { childList: true });
-  });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(initLoadMoreHoverOnly, 500);
   setTimeout(initTabFromURL, 200);
 });
 
