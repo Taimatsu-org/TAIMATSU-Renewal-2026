@@ -7,7 +7,6 @@ window.FinsweetAttributes.push([
       ?.getAttribute("data-barba-namespace");
     if (ns !== "recruit") return;
     setFinsweetFilterValues();
-
   },
 ]);
 
@@ -752,9 +751,18 @@ function initLineAnimation() {
   let wrapperHeight = 0;
   let pathSegments = [];
 
+  function getAbsoluteOffsetTop(el) {
+    let top = 0;
+    let node = el;
+    while (node && node !== document.documentElement) {
+      top += node.offsetTop;
+      node = node.offsetParent;
+    }
+    return top;
+  }
+
   function buildPath() {
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const wrapperTop = wrapperRect.top + window.pageYOffset;
+    const wrapperTop = getAbsoluteOffsetTop(wrapper);
     const wrapperW = wrapper.offsetWidth;
     const wrapperH = wrapper.offsetHeight;
     wrapperHeight = wrapperH;
@@ -823,9 +831,8 @@ function initLineAnimation() {
     pts.push({ x: firstLineX, y: 0 });
 
     sections.forEach((sec, i) => {
-      const secRect = sec.getBoundingClientRect();
-      const secTop = secRect.top + window.pageYOffset - wrapperTop;
-      const secHeight = secRect.height;
+      const secTop = getAbsoluteOffsetTop(sec) - wrapperTop;
+      const secHeight = sec.offsetHeight;
       const bendY = getBendY(sec, secTop, secHeight);
       const lineX = getLineX(sec, i);
 
@@ -959,7 +966,9 @@ function initLineAnimation() {
 
   // First paint in Webflow can still shift after DOMContentLoaded.
   // Run a few settle refreshes to mimic the "open devtools -> resize" fix.
-  window._lineAnimSettleTimers = [0, 120, 360, 800].map((ms) =>
+  // IX2 アニメーションや遅延フォント/画像の読み込みに対応するため
+  // settle タイマーを長めに設定する
+  window._lineAnimSettleTimers = [0, 120, 360, 800, 1500, 2500].map((ms) =>
     setTimeout(() => {
       if (window._lineAnimST) window._lineAnimST.refresh();
     }, ms),
