@@ -1269,6 +1269,15 @@ document.addEventListener("DOMContentLoaded", () => {
         window.Webflow.ready();
         window.Webflow.require("ix2").init();
       }
+
+      setTimeout(() => {
+        const tabLinks = document.querySelectorAll(".w-tab-link");
+        if (!tabLinks.length) return;
+        const hasActive = document.querySelector(".w-tab-link.w--current");
+        if (!hasActive) {
+          tabLinks[0].click();
+        }
+      }, 150);
     });
   } else {
     setTimeout(attachWebflowReinitHook, 100);
