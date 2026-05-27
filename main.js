@@ -1108,64 +1108,76 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 })();
 
+function hideFlashRevealIn(container) {
+  container.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
+    if (el._splitInstance) {
+      el._splitInstance.revert();
+      el._splitInstance = null;
+    }
+    el.removeAttribute("data-flash-initialized");
+    gsap.set(el, { visibility: "hidden" });
+  });
+}
+
+function playFlashRevealIn(container) {
+  container.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
+    var maxDur = parseFloat(el.dataset.flashDuration) || 1;
+    var ease = el.dataset.flashEase || "power2.out";
+    var split = new SplitText(el, { type: "words,chars" });
+    var chars = split.chars;
+    el._splitInstance = split;
+    el.setAttribute("data-flash-initialized", "true");
+    gsap.set(el, { visibility: "visible" });
+    gsap.set(chars, { autoAlpha: 0 });
+    var stag = Math.max(0.01, (maxDur - 0.6) / chars.length);
+    gsap.to(chars, {
+      autoAlpha: 1,
+      duration: 0.6,
+      ease: ease,
+      stagger: {
+        each: stag,
+        from: "random",
+        onStart: function () {
+          var char = this.targets()[0];
+          var flashes = Math.floor(Math.random() * 3) + 1;
+          if (flashes === 1) return;
+          var ftl = gsap.timeline();
+          for (var i = 0; i < flashes - 1; i++) {
+            ftl
+              .to(char, { autoAlpha: 1, duration: 0.08, ease: "none" })
+              .to(char, { autoAlpha: 0, duration: 0.08, ease: "none" });
+          }
+        },
+      },
+    });
+  });
+}
+
 function initTabFlashReveal() {
   document.querySelectorAll(".w-tab-link").forEach(function (tabLink) {
     if (tabLink.dataset.tabAnimInit) return;
     tabLink.dataset.tabAnimInit = "true";
     tabLink.addEventListener("click", function () {
-      // 點擊瞬間：找到目標 pane，立刻隱藏文字
       var tabId = tabLink.getAttribute("data-w-tab");
+
+      // クリック時：tab pane と外部 heading の両方を即座に非表示
       var targetPane = tabId
         ? document.querySelector('.w-tab-pane[data-w-tab="' + tabId + '"]')
         : null;
-      if (targetPane) {
-        targetPane
-          .querySelectorAll("[data-flash-reveal]")
-          .forEach(function (el) {
-            if (el._splitInstance) {
-              el._splitInstance.revert();
-              el._splitInstance = null;
-            }
-            el.removeAttribute("data-flash-initialized");
-            gsap.set(el, { visibility: "hidden" });
-          });
-      }
+      if (targetPane) hideFlashRevealIn(targetPane);
+
+      var targetHeading = tabId
+        ? document.querySelector('[data-tab-for="' + tabId + '"]')
+        : null;
+      if (targetHeading) hideFlashRevealIn(targetHeading);
+
+      // 300ms 後：active になった tab pane と外部 heading でアニメーション再生
       setTimeout(function () {
         var activePane = document.querySelector(".w-tab-pane.w--tab-active");
-        if (!activePane) return;
-        activePane
-          .querySelectorAll("[data-flash-reveal]")
-          .forEach(function (el) {
-            var maxDur = parseFloat(el.dataset.flashDuration) || 1;
-            var ease = el.dataset.flashEase || "power2.out";
-            var split = new SplitText(el, { type: "words,chars" });
-            var chars = split.chars;
-            el._splitInstance = split;
-            el.setAttribute("data-flash-initialized", "true");
-            gsap.set(el, { visibility: "visible" });
-            gsap.set(chars, { autoAlpha: 0 });
-            var stag = Math.max(0.01, (maxDur - 0.6) / chars.length);
-            gsap.to(chars, {
-              autoAlpha: 1,
-              duration: 0.6,
-              ease: ease,
-              stagger: {
-                each: stag,
-                from: "random",
-                onStart: function () {
-                  var char = this.targets()[0];
-                  var flashes = Math.floor(Math.random() * 3) + 1;
-                  if (flashes === 1) return;
-                  var ftl = gsap.timeline();
-                  for (var i = 0; i < flashes - 1; i++) {
-                    ftl
-                      .to(char, { autoAlpha: 1, duration: 0.08, ease: "none" })
-                      .to(char, { autoAlpha: 0, duration: 0.08, ease: "none" });
-                  }
-                },
-              },
-            });
-          });
+        if (activePane) playFlashRevealIn(activePane);
+
+        var activeHeading = document.querySelector("[data-tab-for].is-active");
+        if (activeHeading) playFlashRevealIn(activeHeading);
       }, 300);
     });
   });
