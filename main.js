@@ -1183,6 +1183,41 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 })();
 
+function initTabHeading() {
+  const headings = document.querySelectorAll("[data-tab-for]");
+  if (!headings.length) return;
+
+  document.querySelectorAll(".w-tab-link").forEach((link) => {
+    if (link.dataset.tabHeadingInit) return;
+    link.dataset.tabHeadingInit = "true";
+    link.addEventListener("click", () => {
+      const tabId = link.getAttribute("data-w-tab");
+      headings.forEach((el) => {
+        el.classList.toggle("is-active", el.dataset.tabFor === tabId);
+      });
+    });
+  });
+  const activeTab = document.querySelector(".w-tab-link.w--current");
+  if (activeTab) {
+    const tabId = activeTab.getAttribute("data-w-tab");
+    headings.forEach((el) => {
+      el.classList.toggle("is-active", el.dataset.tabFor === tabId);
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(initTabHeading, 200);
+});
+
+(function attachTabHeadingHook() {
+  if (window.barba) {
+    barba.hooks.afterEnter(() => setTimeout(initTabHeading, 200));
+  } else {
+    setTimeout(attachTabHeadingHook, 100);
+  }
+})();
+
 (function attachWebflowReinitHook() {
   if (window.barba) {
     barba.hooks.afterEnter(() => {
