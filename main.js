@@ -1195,6 +1195,34 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 })();
 
+function applyTabHeadingState() {
+  const headings = document.querySelectorAll("[data-tab-for]");
+  if (!headings.length) return;
+
+  let tabId = null;
+  const currentLink = document.querySelector(".w-tab-link.w--current");
+  if (currentLink) {
+    tabId = currentLink.getAttribute("data-w-tab");
+  }
+  if (!tabId) {
+    const activePane = document.querySelector(".w-tab-pane.w--tab-active");
+    if (activePane) tabId = activePane.getAttribute("data-w-tab");
+  }
+  if (!tabId) {
+    const firstLink = document.querySelector(".w-tab-link");
+    if (firstLink) tabId = firstLink.getAttribute("data-w-tab");
+  }
+
+  if (!tabId) {
+    headings.forEach((el, i) => el.classList.toggle("is-active", i === 0));
+    return;
+  }
+
+  headings.forEach((el) => {
+    el.classList.toggle("is-active", el.dataset.tabFor === tabId);
+  });
+}
+
 function initTabHeading() {
   const headings = document.querySelectorAll("[data-tab-for]");
   if (!headings.length) return;
@@ -1209,22 +1237,25 @@ function initTabHeading() {
       });
     });
   });
-  const activeTab = document.querySelector(".w-tab-link.w--current");
-  if (activeTab) {
-    const tabId = activeTab.getAttribute("data-w-tab");
-    headings.forEach((el) => {
-      el.classList.toggle("is-active", el.dataset.tabFor === tabId);
-    });
-  }
+
+  applyTabHeadingState();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  applyTabHeadingState();
   setTimeout(initTabHeading, 200);
 });
 
 (function attachTabHeadingHook() {
   if (window.barba) {
-    barba.hooks.afterEnter(() => setTimeout(initTabHeading, 200));
+    barba.hooks.afterEnter(() => {
+      // 即座に適用、Webflow 初期化後にも再適用
+      applyTabHeadingState();
+      setTimeout(() => {
+        applyTabHeadingState();
+        initTabHeading();
+      }, 300);
+    });
   } else {
     setTimeout(attachTabHeadingHook, 100);
   }
