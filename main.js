@@ -154,21 +154,23 @@ function initRecruitPageFeatures() {
 
   // 3. Finsweet filter values + restart
   setFinsweetFilterValues();
-  const listMod = window.FinsweetAttributes?.modules?.list;
-  if (listMod?.restart) {
-    setTimeout(function () {
-      try {
-        const r = listMod.restart();
-        if (r && typeof r.then === "function") {
-          r.then(setFinsweetFilterValues);
-        } else {
-          setTimeout(setFinsweetFilterValues, 50);
-        }
-      } catch (e) {
-        setTimeout(setFinsweetFilterValues, 50);
+  (async function reinitFinsweetList() {
+    const listMod = window.FinsweetAttributes?.modules?.list;
+    if (!listMod) return;
+    try {
+      if (listMod.loading && typeof listMod.loading.then === "function") {
+        await listMod.loading;
       }
-    }, 100);
-  }
+      setFinsweetFilterValues();
+      if (typeof listMod.restart === "function") {
+        const r = listMod.restart();
+        if (r && typeof r.then === "function") await r;
+      }
+      setFinsweetFilterValues();
+    } catch (e) {
+      setFinsweetFilterValues();
+    }
+  })();
 
   // 4. Division description switcher
   const descriptions = document.querySelectorAll(".division-desc");
