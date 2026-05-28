@@ -103,7 +103,32 @@ function initRecruitPageFeatures() {
     });
   }
 
-  // 2. Division filter — Close
+  // 2. Division filter — Close + scroll to list top
+  const FILTER_SCROLL_OFFSET = 100;
+  function scrollToPositionListTop() {
+    const listEl =
+      document.querySelector('[fs-list-element="list"]') ||
+      document.querySelector(".position-list") ||
+      document.querySelector(".position-item")?.parentElement;
+    if (!listEl) return;
+    const targetY =
+      listEl.getBoundingClientRect().top +
+      window.pageYOffset -
+      FILTER_SCROLL_OFFSET;
+    if (window.pageYOffset <= targetY) return;
+    if (window.lenis?.scrollTo) {
+      window.lenis.scrollTo(targetY, { duration: 0.8 });
+    } else if (window.gsap?.to) {
+      window.gsap.to(window, {
+        duration: 0.8,
+        scrollTo: { y: targetY, autoKill: false },
+        ease: "power2.inOut",
+      });
+    } else {
+      window.scrollTo({ top: targetY, behavior: "smooth" });
+    }
+  }
+
   document
     .querySelectorAll('input[name="division-filter"]')
     .forEach(function (radio) {
@@ -117,8 +142,15 @@ function initRecruitPageFeatures() {
             if (icon) icon.classList.remove("is-open");
             item.classList.remove("is-open");
           });
+        scrollToPositionListTop();
       });
     });
+
+  const filterClearBtn = document.querySelector('[fs-list-element="clear"]');
+  if (filterClearBtn && !filterClearBtn.dataset.filterScrollInit) {
+    filterClearBtn.dataset.filterScrollInit = "true";
+    filterClearBtn.addEventListener("click", scrollToPositionListTop);
+  }
 
   // 3. Finsweet filter values + restart
   setFinsweetFilterValues();
