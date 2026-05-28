@@ -39,6 +39,35 @@ function initRecruitPageFeatures() {
   );
   if (recruitContainer && !recruitContainer.dataset.accordionDelegate) {
     recruitContainer.dataset.accordionDelegate = "true";
+
+    const ACCORDION_SCROLL_OFFSET = 100;
+    function scrollToAccordionItem(item) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (window.lenis?.scrollTo) {
+            window.lenis.scrollTo(item, {
+              offset: -ACCORDION_SCROLL_OFFSET,
+              duration: 1,
+            });
+            return;
+          }
+          const targetY =
+            item.getBoundingClientRect().top +
+            window.pageYOffset -
+            ACCORDION_SCROLL_OFFSET;
+          if (window.gsap?.to) {
+            window.gsap.to(window, {
+              duration: 1,
+              scrollTo: { y: targetY, autoKill: false },
+              ease: "power2.inOut",
+            });
+          } else {
+            window.scrollTo({ top: targetY, behavior: "smooth" });
+          }
+        });
+      });
+    }
+
     recruitContainer.addEventListener("click", function (e) {
       const trigger = e.target.closest(".position-accordion-trigger");
       if (!trigger) return;
@@ -57,6 +86,7 @@ function initRecruitPageFeatures() {
       if (!isCurrentlyOpen) {
         clickedItem.classList.add("is-open");
         if (clickedIcon) clickedIcon.classList.add("is-open");
+        scrollToAccordionItem(clickedItem);
       }
     });
   }
