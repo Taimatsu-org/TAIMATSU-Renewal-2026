@@ -1272,7 +1272,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 (function attachWebflowReinitHook() {
   if (window.barba) {
-    barba.hooks.afterEnter(() => {
+    barba.hooks.after(() => {
       setTimeout(() => {
         const tabLinks = document.querySelectorAll(".w-tab-link");
         if (!tabLinks.length) return;
@@ -1280,7 +1280,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!hasActive) {
           tabLinks[0].click();
         }
-      }, 150);
+      }, 200);
     });
   } else {
     setTimeout(attachWebflowReinitHook, 100);
@@ -1367,6 +1367,10 @@ function initLocalizationSwitcher() {
     link.addEventListener("click", function (e) {
       const href = this.getAttribute("href");
       if (!href) return;
+      if (href === window.location.pathname || href === window.location.href) {
+        e.preventDefault();
+        return;
+      }
 
       if (window.innerWidth < 768) {
         return;
