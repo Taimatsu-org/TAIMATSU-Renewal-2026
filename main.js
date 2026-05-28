@@ -1260,11 +1260,6 @@ document.addEventListener("DOMContentLoaded", () => {
 (function attachTabAndReinitHook() {
   if (window.barba) {
     barba.hooks.after(() => {
-      if (window.Webflow) {
-        window.Webflow.destroy();
-        window.Webflow.ready();
-        window.Webflow.require("ix2").init();
-      }
       setTimeout(() => {
         const tabLinks = document.querySelectorAll(".w-tab-link");
         if (
@@ -1365,8 +1360,12 @@ function initLocalizationSwitcher() {
       const href = this.getAttribute("href");
       if (!href) return;
       try {
+        const getLocale = (path) => {
+          const m = path.match(/^\/([a-z]{2})(\/|$)/);
+          return m ? m[1] : "default";
+        };
         const linkPath = new URL(href, window.location.href).pathname;
-        if (linkPath === window.location.pathname) {
+        if (getLocale(linkPath) === getLocale(window.location.pathname)) {
           e.preventDefault();
           return;
         }
