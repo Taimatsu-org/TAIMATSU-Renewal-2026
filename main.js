@@ -1341,37 +1341,65 @@ document.addEventListener("DOMContentLoaded", initCompanyPage);
 })();
 
 // ============================================
-// Localization Switcher（言語切換アニメーション）
+// Localization Switcher
 // ============================================
 
+function cleanupLocalizationState() {
+  const wrapper = document.querySelector(".localization-wrapper");
+  if (!wrapper) return;
+  wrapper.classList.remove("switching", "to-left");
+  document.querySelectorAll(".localization-link").forEach((link) => {
+    link.classList.remove("target");
+  });
+}
+
 function initLocalizationSwitcher() {
+  document.querySelectorAll(".localization-link").forEach((link) => {
+    if (!link.hasAttribute("data-barba-prevent")) {
+      link.setAttribute("data-barba-prevent", "self");
+    }
+  });
+
   document.querySelectorAll(".localization-link").forEach((link) => {
     if (link.dataset.localeInit) return;
     link.dataset.localeInit = "true";
 
     link.addEventListener("click", function (e) {
-      if (this.classList.contains("w--current")) {
-        e.preventDefault();
-        return;
-      }
+      const href = this.getAttribute("href");
+      if (!href) return;
+
       if (window.innerWidth < 768) {
         return;
       }
+
       e.preventDefault();
-      const href = this.getAttribute("href");
+
       const wrapper = document.querySelector(".localization-wrapper");
+
+      if (wrapper) {
+        wrapper.classList.remove("switching", "to-left");
+        void wrapper.offsetWidth;
+      }
+      document.querySelectorAll(".localization-link").forEach((l) => {
+        l.classList.remove("target");
+      });
+      let goLeft = false;
       const currentLink = document.querySelector(
         ".localization-link.w--current",
       );
-      if (wrapper && currentLink) {
+      if (currentLink) {
         const targetRect = this.getBoundingClientRect();
         const currentRect = currentLink.getBoundingClientRect();
-        if (targetRect.left < currentRect.left) {
-          wrapper.classList.add("to-left");
-        }
+        goLeft = targetRect.left < currentRect.left;
+      } else {
+        const allLinks = [...document.querySelectorAll(".localization-link")];
+        goLeft = allLinks.indexOf(this) === 0;
       }
+
+      if (wrapper && goLeft) wrapper.classList.add("to-left");
       this.classList.add("target");
       if (wrapper) wrapper.classList.add("switching");
+
       setTimeout(() => {
         window.location.href = href;
       }, 200);
@@ -1383,6 +1411,7 @@ document.addEventListener("DOMContentLoaded", initLocalizationSwitcher);
 
 (function attachLocaleBarbaHook() {
   if (window.barba) {
+    barba.hooks.before(cleanupLocalizationState);
     barba.hooks.afterEnter(() => initLocalizationSwitcher());
   } else {
     setTimeout(attachLocaleBarbaHook, 100);
