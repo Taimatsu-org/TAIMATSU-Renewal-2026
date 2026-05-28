@@ -1434,10 +1434,29 @@ function initLocalizationSwitcher() {
 
 document.addEventListener("DOMContentLoaded", initLocalizationSwitcher);
 
+function restoreLocalizationCurrent() {
+  const getLocale = (path) => {
+    const m = path.match(/^\/([a-z]{2})(\/|$)/);
+    return m ? m[1] : "default";
+  };
+  const currentLocale = getLocale(window.location.pathname);
+  document.querySelectorAll(".localization-link").forEach((link) => {
+    try {
+      const linkPath = new URL(
+        link.getAttribute("href") || "",
+        window.location.href,
+      ).pathname;
+      const isMatch = getLocale(linkPath) === currentLocale;
+      link.classList.toggle("w--current", isMatch);
+    } catch (_) {}
+  });
+}
+
 (function attachLocaleBarbaHook() {
   if (window.barba) {
     barba.hooks.before(cleanupLocalizationState);
     barba.hooks.afterEnter(() => initLocalizationSwitcher());
+    barba.hooks.after(() => restoreLocalizationCurrent());
   } else {
     setTimeout(attachLocaleBarbaHook, 100);
   }
