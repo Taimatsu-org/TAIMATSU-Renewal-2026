@@ -41,31 +41,38 @@ function initRecruitPageFeatures() {
     recruitContainer.dataset.accordionDelegate = "true";
 
     const ACCORDION_SCROLL_OFFSET = 100;
-    function scrollToAccordionItem(item) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (window.lenis?.scrollTo) {
-            window.lenis.scrollTo(item, {
-              offset: -ACCORDION_SCROLL_OFFSET,
-              duration: 1,
-            });
-            return;
-          }
-          const targetY =
-            item.getBoundingClientRect().top +
-            window.pageYOffset -
-            ACCORDION_SCROLL_OFFSET;
-          if (window.gsap?.to) {
-            window.gsap.to(window, {
-              duration: 1,
-              scrollTo: { y: targetY, autoKill: false },
-              ease: "power2.inOut",
-            });
-          } else {
-            window.scrollTo({ top: targetY, behavior: "smooth" });
-          }
+
+    function computeFinalTargetY(clickedItem) {
+      let collapseDelta = 0;
+      document
+        .querySelectorAll(".position-item.is-open")
+        .forEach(function (openItem) {
+          if (openItem === clickedItem) return;
+          const rel = openItem.compareDocumentPosition(clickedItem);
+          const isAboveClicked = rel & Node.DOCUMENT_POSITION_FOLLOWING;
+          if (!isAboveClicked) return;
+          const t = openItem.querySelector(".position-accordion-trigger");
+          const closedH = t ? t.getBoundingClientRect().height : 0;
+          const openH = openItem.getBoundingClientRect().height;
+          collapseDelta += Math.max(0, openH - closedH);
         });
-      });
+      const currentTop =
+        clickedItem.getBoundingClientRect().top + window.pageYOffset;
+      return currentTop - collapseDelta - ACCORDION_SCROLL_OFFSET;
+    }
+
+    function scrollToY(y) {
+      if (window.lenis?.scrollTo) {
+        window.lenis.scrollTo(y, { duration: 1 });
+      } else if (window.gsap?.to) {
+        window.gsap.to(window, {
+          duration: 1,
+          scrollTo: { y, autoKill: false },
+          ease: "power2.inOut",
+        });
+      } else {
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
     }
 
     recruitContainer.addEventListener("click", function (e) {
@@ -76,6 +83,11 @@ function initRecruitPageFeatures() {
       if (!clickedItem) return;
       const clickedIcon = trigger.querySelector(".position-icon-ver");
       const isCurrentlyOpen = clickedItem.classList.contains("is-open");
+
+      const targetY = !isCurrentlyOpen
+        ? computeFinalTargetY(clickedItem)
+        : null;
+
       document
         .querySelectorAll(".position-item.is-open")
         .forEach(function (openItem) {
@@ -86,7 +98,7 @@ function initRecruitPageFeatures() {
       if (!isCurrentlyOpen) {
         clickedItem.classList.add("is-open");
         if (clickedIcon) clickedIcon.classList.add("is-open");
-        scrollToAccordionItem(clickedItem);
+        scrollToY(targetY);
       }
     });
   }
