@@ -163,6 +163,16 @@ function initRecruitPageFeatures() {
         ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
       );
     }
+    function settleThumbProgress() {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setupAllPaths();
+          refreshActiveThumbSvg();
+          staffVoicesThumbs.update();
+          if (window.staffVoicesMain) window.staffVoicesMain.update();
+        });
+      });
+    }
 
     let resizeTimer;
     window._staffVoicesResize = () => {
@@ -185,7 +195,12 @@ function initRecruitPageFeatures() {
       on: {
         init() {
           setupAllPaths();
-          refreshActiveThumbSvg();
+        },
+        afterInit() {
+          settleThumbProgress();
+        },
+        imagesReady() {
+          settleThumbProgress();
         },
         autoplayTimeLeft(s, time, progress) {
           if (isSwitching || !activeThumbSvg) return;
@@ -207,6 +222,11 @@ function initRecruitPageFeatures() {
 
     window.staffVoicesMain = staffVoicesMain;
     window.staffVoicesThumbs = staffVoicesThumbs;
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(settleThumbProgress);
+    }
+    window.addEventListener("load", settleThumbProgress, { once: true });
   }
 }
 
@@ -627,6 +647,16 @@ function initInterviewTemplate() {
         ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
       );
     }
+    function settleThumbProgress() {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setupAllPaths();
+          refreshActiveThumbSvg();
+          staffVoicesThumbs.update();
+          if (window.staffVoicesMain) window.staffVoicesMain.update();
+        });
+      });
+    }
 
     let resizeTimer;
     const staffResize = () => {
@@ -650,7 +680,12 @@ function initInterviewTemplate() {
       on: {
         init() {
           setupAllPaths();
-          refreshActiveThumbSvg();
+        },
+        afterInit() {
+          settleThumbProgress();
+        },
+        imagesReady() {
+          settleThumbProgress();
         },
         autoplayTimeLeft(s, time, progress) {
           if (isSwitching || !activeThumbSvg) return;
@@ -674,6 +709,11 @@ function initInterviewTemplate() {
     window._tplCleanup.staffVoicesThumbs = staffVoicesThumbs;
     window.staffVoicesMain = staffVoicesMain;
     window.staffVoicesThumbs = staffVoicesThumbs;
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(settleThumbProgress);
+    }
+    window.addEventListener("load", settleThumbProgress, { once: true });
   }
 }
 
