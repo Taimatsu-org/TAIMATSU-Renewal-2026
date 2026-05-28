@@ -1160,7 +1160,6 @@ function initTabFlashReveal() {
     tabLink.addEventListener("click", function () {
       var tabId = tabLink.getAttribute("data-w-tab");
 
-      // クリック時：tab pane と外部 heading の両方を即座に非表示
       var targetPane = tabId
         ? document.querySelector('.w-tab-pane[data-w-tab="' + tabId + '"]')
         : null;
@@ -1171,7 +1170,6 @@ function initTabFlashReveal() {
         : null;
       if (targetHeading) hideFlashRevealIn(targetHeading);
 
-      // 300ms 後：active になった tab pane と外部 heading でアニメーション再生
       setTimeout(function () {
         var activePane = document.querySelector(".w-tab-pane.w--tab-active");
         if (activePane) playFlashRevealIn(activePane);
@@ -1249,8 +1247,6 @@ document.addEventListener("DOMContentLoaded", () => {
 (function attachTabHeadingHook() {
   if (window.barba) {
     barba.hooks.afterEnter(() => {
-      // 即座に適用、Webflow 初期化後にも再適用
-      applyTabHeadingState();
       setTimeout(() => {
         applyTabHeadingState();
         initTabHeading();
@@ -1281,5 +1277,58 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   } else {
     setTimeout(attachWebflowReinitHook, 100);
+  }
+})();
+
+// ============================================
+// Company Page — Division SVG Color Effect
+// ============================================
+let _companyObserver = null;
+
+function cleanupCompanyPage() {
+  if (_companyObserver) {
+    _companyObserver.disconnect();
+    _companyObserver = null;
+  }
+}
+
+function initCompanyPage() {
+  cleanupCompanyPage();
+
+  const sections = document.querySelectorAll(".each-division");
+  const shapes = [
+    ...document.querySelectorAll(".interaction-wrapper"),
+  ].reverse();
+  if (!sections.length || !shapes.length) return;
+
+  _companyObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const index = [...sections].indexOf(entry.target);
+        if (index === -1) return;
+        if (entry.isIntersecting) {
+          shapes[index].classList.add("is-active");
+          shapes.forEach((s, i) => {
+            s.style.zIndex = i === index ? "10" : "0";
+          });
+        } else {
+          shapes[index].classList.remove("is-active");
+        }
+      });
+    },
+    { threshold: 0.5 },
+  );
+
+  sections.forEach((s) => _companyObserver.observe(s));
+}
+
+document.addEventListener("DOMContentLoaded", initCompanyPage);
+
+(function attachCompanyBarbaHook() {
+  if (window.barba) {
+    barba.hooks.before(cleanupCompanyPage);
+    barba.hooks.afterEnter(() => setTimeout(initCompanyPage, 150));
+  } else {
+    setTimeout(attachCompanyBarbaHook, 100);
   }
 })();
