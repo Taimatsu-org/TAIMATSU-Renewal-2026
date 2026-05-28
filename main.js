@@ -174,12 +174,14 @@ function initRecruitPageFeatures() {
         selectedDivision = span?.getAttribute("fs-list-value");
       }
       if (!selectedDivision) {
-        descriptions.forEach((d) => (d.style.display = "none"));
+        descriptions.forEach((d) => d.classList.remove("is-active"));
         if (emptyMsg) emptyMsg.style.display = "";
       } else {
         descriptions.forEach((d) => {
-          d.style.display =
-            d.getAttribute("data-division") === selectedDivision ? "" : "none";
+          d.classList.toggle(
+            "is-active",
+            d.getAttribute("data-division") === selectedDivision,
+          );
         });
         if (emptyMsg) emptyMsg.style.display = "none";
       }
