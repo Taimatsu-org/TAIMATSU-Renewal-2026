@@ -221,11 +221,11 @@ function initRecruitPageFeatures() {
 
 document.addEventListener("DOMContentLoaded", initRecruitPageFeatures);
 
-(function attachBarbaHook() {
+(function attachRecruitBarbaHook() {
   if (window.barba) {
-    barba.hooks.after(() => setTimeout(initRecruitPageFeatures, 150));
+    barba.hooks.afterEnter(() => setTimeout(initRecruitPageFeatures, 150));
   } else {
-    setTimeout(attachBarbaHook, 100);
+    setTimeout(attachRecruitBarbaHook, 100);
   }
 })();
 
@@ -671,17 +671,17 @@ function initInterviewTemplate() {
 
 document.addEventListener("DOMContentLoaded", initInterviewTemplate);
 
-(function attachBarbaHook() {
+(function attachInterviewBarbaHook() {
   if (window.barba) {
     barba.hooks.before(() => {
       const ns = document
         .querySelector("[data-barba-namespace]")
         ?.getAttribute("data-barba-namespace");
-      if (ns === "interview-template") cleanupInterviewTemplate();
+      if (ns === "interview-cms") cleanupInterviewTemplate();
     });
-    barba.hooks.after(() => setTimeout(initInterviewTemplate, 150));
+    barba.hooks.afterEnter(() => setTimeout(initInterviewTemplate, 150));
   } else {
-    setTimeout(attachBarbaHook, 100);
+    setTimeout(attachInterviewBarbaHook, 100);
   }
 })();
 
@@ -1212,12 +1212,18 @@ function applyTabHeadingState() {
   }
 
   if (!tabId) {
-    headings.forEach((el, i) => el.classList.toggle("is-active", i === 0));
+    headings.forEach((el, i) => {
+      const active = i === 0;
+      el.classList.toggle("is-active", active);
+      el.style.display = active ? "" : "none";
+    });
     return;
   }
 
   headings.forEach((el) => {
-    el.classList.toggle("is-active", el.dataset.tabFor === tabId);
+    const active = el.dataset.tabFor === tabId;
+    el.classList.toggle("is-active", active);
+    el.style.display = active ? "" : "none";
   });
 }
 
@@ -1231,7 +1237,9 @@ function initTabHeading() {
     link.addEventListener("click", () => {
       const tabId = link.getAttribute("data-w-tab");
       headings.forEach((el) => {
-        el.classList.toggle("is-active", el.dataset.tabFor === tabId);
+        const active = el.dataset.tabFor === tabId;
+        el.classList.toggle("is-active", active);
+        el.style.display = active ? "" : "none";
       });
     });
   });
@@ -1247,6 +1255,14 @@ document.addEventListener("DOMContentLoaded", () => {
 (function attachTabHeadingHook() {
   if (window.barba) {
     barba.hooks.afterEnter(() => {
+      // 新ページ進入直後、CSS デフォルトで表示される heading を即座に全部隠す。
+      // CSS が特定 data-tab-for のみ display:none にする設計のため、
+      // 最初の heading が常に見えてしまう問題（2つ同時表示）を防ぐ。
+      document.querySelectorAll("[data-tab-for]").forEach((el) => {
+        el.style.display = "none";
+        el.classList.remove("is-active");
+      });
+      // Webflow.ready() + tabLinks[0].click()（150ms）が完了した後に正しい状態を反映
       setTimeout(() => {
         applyTabHeadingState();
         initTabHeading();
