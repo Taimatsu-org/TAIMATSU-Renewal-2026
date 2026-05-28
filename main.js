@@ -1257,33 +1257,30 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(initTabHeading, 200);
 });
 
-(function attachTabHeadingHook() {
+(function attachTabAndReinitHook() {
   if (window.barba) {
-    barba.hooks.afterEnter(() => {
+    barba.hooks.after(() => {
+      if (window.Webflow) {
+        window.Webflow.destroy();
+        window.Webflow.ready();
+        window.Webflow.require("ix2").init();
+      }
       setTimeout(() => {
-        applyTabHeadingState();
-        initTabHeading();
+        const tabLinks = document.querySelectorAll(".w-tab-link");
+        if (
+          tabLinks.length &&
+          !document.querySelector(".w-tab-link.w--current")
+        ) {
+          tabLinks[0].click();
+        }
+        setTimeout(() => {
+          applyTabHeadingState();
+          initTabHeading();
+        }, 150);
       }, 300);
     });
   } else {
-    setTimeout(attachTabHeadingHook, 100);
-  }
-})();
-
-(function attachWebflowReinitHook() {
-  if (window.barba) {
-    barba.hooks.after(() => {
-      setTimeout(() => {
-        const tabLinks = document.querySelectorAll(".w-tab-link");
-        if (!tabLinks.length) return;
-        const hasActive = document.querySelector(".w-tab-link.w--current");
-        if (!hasActive) {
-          tabLinks[0].click();
-        }
-      }, 200);
-    });
-  } else {
-    setTimeout(attachWebflowReinitHook, 100);
+    setTimeout(attachTabAndReinitHook, 100);
   }
 })();
 
@@ -1367,10 +1364,13 @@ function initLocalizationSwitcher() {
     link.addEventListener("click", function (e) {
       const href = this.getAttribute("href");
       if (!href) return;
-      if (href === window.location.pathname || href === window.location.href) {
-        e.preventDefault();
-        return;
-      }
+      try {
+        const linkPath = new URL(href, window.location.href).pathname;
+        if (linkPath === window.location.pathname) {
+          e.preventDefault();
+          return;
+        }
+      } catch (_) {}
 
       if (window.innerWidth < 768) {
         return;
