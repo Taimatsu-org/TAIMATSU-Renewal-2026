@@ -34,9 +34,10 @@ function initRecruitPageFeatures() {
   if (ns !== "recruit") return;
 
   // 1. Position accordion
-  const recruitContainer =
-    document.querySelector("[data-barba-namespace='recruit']") || document.body;
-  if (!recruitContainer.dataset.accordionDelegate) {
+  const recruitContainer = document.querySelector(
+    "[data-barba-namespace='recruit']",
+  );
+  if (recruitContainer && !recruitContainer.dataset.accordionDelegate) {
     recruitContainer.dataset.accordionDelegate = "true";
     recruitContainer.addEventListener("click", function (e) {
       const trigger = e.target.closest(".position-accordion-trigger");
@@ -138,6 +139,9 @@ function initRecruitPageFeatures() {
       freeMode: true,
       watchSlidesProgress: true,
       slideToClickedSlide: true,
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
       breakpoints: {
         0: { slidesPerView: "auto", spaceBetween: 12 },
         992: { slidesPerView: 4, spaceBetween: 16 },
@@ -175,6 +179,9 @@ function initRecruitPageFeatures() {
       allowTouchMove: false,
       autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
       thumbs: { swiper: staffVoicesThumbs },
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
       on: {
         init() {
           setupAllPaths();
@@ -203,8 +210,6 @@ function initRecruitPageFeatures() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", initRecruitPageFeatures);
-
 function cleanupRecruitSwiper() {
   if (window.staffVoicesMain) {
     try {
@@ -223,17 +228,6 @@ function cleanupRecruitSwiper() {
     window._staffVoicesResize = null;
   }
 }
-
-(function attachRecruitBarbaHook() {
-  if (window.barba) {
-    barba.hooks.afterLeave((data) => {
-      if (data.current.namespace === "recruit") cleanupRecruitSwiper();
-    });
-    barba.hooks.afterEnter(() => setTimeout(initRecruitPageFeatures, 150));
-  } else {
-    setTimeout(attachRecruitBarbaHook, 100);
-  }
-})();
 
 window._tplCleanup = window._tplCleanup || {};
 
@@ -609,6 +603,9 @@ function initInterviewTemplate() {
       freeMode: true,
       watchSlidesProgress: true,
       slideToClickedSlide: true,
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
       breakpoints: {
         0: { slidesPerView: "auto", spaceBetween: 12 },
         992: { slidesPerView: 4, spaceBetween: 16 },
@@ -647,6 +644,9 @@ function initInterviewTemplate() {
       allowTouchMove: false,
       autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
       thumbs: { swiper: staffVoicesThumbs },
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
       on: {
         init() {
           setupAllPaths();
@@ -676,20 +676,6 @@ function initInterviewTemplate() {
     window.staffVoicesThumbs = staffVoicesThumbs;
   }
 }
-
-document.addEventListener("DOMContentLoaded", initInterviewTemplate);
-
-(function attachInterviewBarbaHook() {
-  if (window.barba) {
-    barba.hooks.afterLeave((data) => {
-      if (data.current.namespace === "interview-cms")
-        cleanupInterviewTemplate();
-    });
-    barba.hooks.afterEnter(() => setTimeout(initInterviewTemplate, 150));
-  } else {
-    setTimeout(attachInterviewBarbaHook, 100);
-  }
-})();
 
 // ============================================
 // Line Animation
@@ -885,7 +871,6 @@ function initLineAnimation() {
     path.style.strokeDasharray = totalPathLen;
     path.style.strokeDashoffset = totalPathLen;
 
-    // 退避した IX2 transform を即座に復元（次の描画フレーム前なので画面に変化なし）
     savedTransforms.forEach(({ el, value }) => {
       el.style.transform = value;
     });
@@ -895,8 +880,6 @@ function initLineAnimation() {
     if (targetY <= 0) return 0;
     if (targetY >= wrapperHeight) return totalPathLen;
 
-    // Path Y is monotonically non-decreasing — first segment whose y2 reaches
-    // targetY is the one containing it.
     for (let i = 0; i < pathSegments.length; i++) {
       const seg = pathSegments[i];
       if (seg.y2 < targetY) continue;
@@ -960,12 +943,10 @@ function initLineAnimation() {
         targetOffset = offsetFromViewportCenter();
       }
 
-      // Keep continuity after refresh to avoid sudden "draw all at once" jumps.
       currentOffset = targetOffset;
       path.style.strokeDashoffset = currentOffset;
     },
     onUpdate: (self) => {
-      // Keep the line at exact start/end states outside the active range.
       if (!self.isActive) {
         targetOffset = self.progress <= 0 ? totalPathLen : 0;
       } else {
@@ -977,18 +958,12 @@ function initLineAnimation() {
 
   ScrollTrigger.refresh();
 
-  // First paint in Webflow can still shift after DOMContentLoaded.
-  // Run a few settle refreshes to mimic the "open devtools -> resize" fix.
-  // IX2 アニメーションや遅延フォント/画像の読み込みに対応するため
-  // settle タイマーを長めに設定する
   window._lineAnimSettleTimers = [0, 120, 360, 800, 1500, 2500].map((ms) =>
     setTimeout(() => {
       if (window._lineAnimST) window._lineAnimST.refresh();
     }, ms),
   );
 
-  // Keep geometry in sync if fixed-height spacer sections are restyled
-  // by interactions, responsive rules, or async class changes.
   if (typeof ResizeObserver !== "undefined") {
     let roTicking = false;
     const ro = new ResizeObserver(() => {
@@ -1039,27 +1014,6 @@ function initLineAnimation() {
   );
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(initLineAnimation, 300);
-});
-
-(function attachLineBarbaHook() {
-  if (window.barba) {
-    barba.hooks.before(cleanupLineAnimation);
-    barba.hooks.afterEnter(() => {
-      setTimeout(initLineAnimation, 400);
-    });
-  } else {
-    setTimeout(attachLineBarbaHook, 100);
-  }
-})();
-
-window.addEventListener("popstate", () => {
-  setTimeout(() => {
-    if (window._lineAnimST) window._lineAnimST.refresh();
-  }, 500);
-});
-
 function initTabFromURL() {
   const params = new URLSearchParams(window.location.search);
   const tabId = params.get("tab");
@@ -1076,18 +1030,6 @@ function initTabFromURL() {
   );
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(initTabFromURL, 200);
-});
-
-(function attachTabFromURLHook() {
-  if (window.barba) {
-    barba.hooks.afterEnter(() => setTimeout(initTabFromURL, 200));
-  } else {
-    setTimeout(attachTabFromURLHook, 100);
-  }
-})();
-
 function initJoinedYearLabel() {
   const currentYear = new Date().getFullYear();
   document.querySelectorAll(".joined-year").forEach((yearEl) => {
@@ -1099,18 +1041,6 @@ function initJoinedYearLabel() {
       joinedYear === currentYear ? "/joined" : "/class of";
   });
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(initJoinedYearLabel, 200);
-});
-
-(function attachJoinedYearHook() {
-  if (window.barba) {
-    barba.hooks.afterEnter(() => setTimeout(initJoinedYearLabel, 200));
-  } else {
-    setTimeout(attachJoinedYearHook, 100);
-  }
-})();
 
 function hideFlashRevealIn(container) {
   container.querySelectorAll("[data-flash-reveal]").forEach(function (el) {
@@ -1185,18 +1115,6 @@ function initTabFlashReveal() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(initTabFlashReveal, 300);
-});
-
-(function attachTabFlashHook() {
-  if (window.barba) {
-    barba.hooks.afterEnter(() => setTimeout(initTabFlashReveal, 300));
-  } else {
-    setTimeout(attachTabFlashHook, 100);
-  }
-})();
-
 function applyTabHeadingState() {
   const headings = document.querySelectorAll("[data-tab-for]");
   if (!headings.length) return;
@@ -1251,11 +1169,6 @@ function initTabHeading() {
   applyTabHeadingState();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  applyTabHeadingState();
-  setTimeout(initTabHeading, 200);
-});
-
 function initTabsFallback() {
   if (!document.querySelector("[data-tab-for]")) return;
   document.querySelectorAll(".w-tabs").forEach((widget) => {
@@ -1287,19 +1200,6 @@ function initTabsFallback() {
     });
   });
 }
-
-(function attachTabAndReinitHook() {
-  if (window.barba) {
-    barba.hooks.after(() => {
-      setTimeout(() => {
-        initTabsFallback();
-        initTabHeading();
-      }, 300);
-    });
-  } else {
-    setTimeout(attachTabAndReinitHook, 100);
-  }
-})();
 
 // ============================================
 // Company Page — Division SVG Color Effect
@@ -1342,17 +1242,6 @@ function initCompanyPage() {
 
   sections.forEach((s) => _companyObserver.observe(s));
 }
-
-document.addEventListener("DOMContentLoaded", initCompanyPage);
-
-(function attachCompanyBarbaHook() {
-  if (window.barba) {
-    barba.hooks.before(cleanupCompanyPage);
-    barba.hooks.afterEnter(() => setTimeout(initCompanyPage, 150));
-  } else {
-    setTimeout(attachCompanyBarbaHook, 100);
-  }
-})();
 
 // ============================================
 // Localization Switcher
@@ -1432,8 +1321,6 @@ function initLocalizationSwitcher() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", initLocalizationSwitcher);
-
 function restoreLocalizationCurrent() {
   const getLocale = (path) => {
     const m = path.match(/^\/([a-z]{2})(\/|$)/);
@@ -1452,12 +1339,50 @@ function restoreLocalizationCurrent() {
   });
 }
 
-(function attachLocaleBarbaHook() {
-  if (window.barba) {
-    barba.hooks.before(cleanupLocalizationState);
-    barba.hooks.afterEnter(() => initLocalizationSwitcher());
-    barba.hooks.after(() => restoreLocalizationCurrent());
-  } else {
-    setTimeout(attachLocaleBarbaHook, 100);
-  }
-})();
+// ============================================
+// Exports
+// ============================================
+Object.assign(window, {
+  setFinsweetFilterValues,
+  initRecruitPageFeatures,
+  cleanupRecruitSwiper,
+  initInterviewTemplate,
+  cleanupInterviewTemplate,
+  initLineAnimation,
+  cleanupLineAnimation,
+  initTabFromURL,
+  initJoinedYearLabel,
+  initTabFlashReveal,
+  applyTabHeadingState,
+  initTabHeading,
+  initTabsFallback,
+  initCompanyPage,
+  cleanupCompanyPage,
+  initLocalizationSwitcher,
+  cleanupLocalizationState,
+  restoreLocalizationCurrent,
+});
+
+window.initPageFromMain = function (ns) {
+  if (ns === "recruit") initRecruitPageFeatures();
+  else if (ns === "interview-cms") initInterviewTemplate();
+  else if (ns === "company") initCompanyPage();
+
+  initLineAnimation();
+  initJoinedYearLabel();
+  initTabFromURL();
+  initTabFlashReveal();
+  initTabsFallback();
+  initTabHeading();
+  applyTabHeadingState();
+  initLocalizationSwitcher();
+  restoreLocalizationCurrent();
+};
+
+window.cleanupPageFromMain = function (prevNs) {
+  cleanupLineAnimation();
+  cleanupLocalizationState();
+  if (prevNs === "recruit") cleanupRecruitSwiper();
+  else if (prevNs === "interview-cms") cleanupInterviewTemplate();
+  else if (prevNs === "company") cleanupCompanyPage();
+};
