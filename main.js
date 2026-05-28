@@ -127,22 +127,7 @@ function initRecruitPageFeatures() {
 
   // 5. Staff Voices Swiper
   if (document.querySelector(".staff-voices-swiper")) {
-    if (window.staffVoicesMain) {
-      try {
-        window.staffVoicesMain.destroy(true, true);
-      } catch (e) {}
-      window.staffVoicesMain = null;
-    }
-    if (window.staffVoicesThumbs) {
-      try {
-        window.staffVoicesThumbs.destroy(true, true);
-      } catch (e) {}
-      window.staffVoicesThumbs = null;
-    }
-    if (window._staffVoicesResize) {
-      window.removeEventListener("resize", window._staffVoicesResize);
-      window._staffVoicesResize = null;
-    }
+    cleanupRecruitSwiper();
 
     const SLIDE_DURATION = 5000;
     let isSwitching = false;
@@ -221,8 +206,33 @@ function initRecruitPageFeatures() {
 
 document.addEventListener("DOMContentLoaded", initRecruitPageFeatures);
 
+function cleanupRecruitSwiper() {
+  if (window.staffVoicesMain) {
+    try {
+      window.staffVoicesMain.destroy(true, true);
+    } catch (e) {}
+    window.staffVoicesMain = null;
+  }
+  if (window.staffVoicesThumbs) {
+    try {
+      window.staffVoicesThumbs.destroy(true, true);
+    } catch (e) {}
+    window.staffVoicesThumbs = null;
+  }
+  if (window._staffVoicesResize) {
+    window.removeEventListener("resize", window._staffVoicesResize);
+    window._staffVoicesResize = null;
+  }
+}
+
 (function attachRecruitBarbaHook() {
   if (window.barba) {
+    barba.hooks.before(() => {
+      const ns = document
+        .querySelector("[data-barba-namespace]")
+        ?.getAttribute("data-barba-namespace");
+      if (ns === "recruit") cleanupRecruitSwiper();
+    });
     barba.hooks.afterEnter(() => setTimeout(initRecruitPageFeatures, 150));
   } else {
     setTimeout(attachRecruitBarbaHook, 100);
@@ -261,6 +271,8 @@ function cleanupInterviewTemplate() {
     } catch (e) {}
     c.staffVoicesThumbs = null;
   }
+  window.staffVoicesMain = null;
+  window.staffVoicesThumbs = null;
   window.tocSetHorizontalActive = null;
 }
 
@@ -1255,14 +1267,9 @@ document.addEventListener("DOMContentLoaded", () => {
 (function attachTabHeadingHook() {
   if (window.barba) {
     barba.hooks.afterEnter(() => {
-      // 新ページ進入直後、CSS デフォルトで表示される heading を即座に全部隠す。
-      // CSS が特定 data-tab-for のみ display:none にする設計のため、
-      // 最初の heading が常に見えてしまう問題（2つ同時表示）を防ぐ。
-      document.querySelectorAll("[data-tab-for]").forEach((el) => {
-        el.style.display = "none";
-        el.classList.remove("is-active");
-      });
-      // Webflow.ready() + tabLinks[0].click()（150ms）が完了した後に正しい状態を反映
+      // Webflow.ready() + tabLinks[0].click()（150ms）完了後に適用。
+      // applyTabHeadingState 内で inline style による強制非表示を行うため、
+      // ここで先に display:none する必要はない（Webflow の初期化を妨げるリスクがある）。
       setTimeout(() => {
         applyTabHeadingState();
         initTabHeading();
