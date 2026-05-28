@@ -154,9 +154,24 @@ function initRecruitPageFeatures() {
 
   // 3. Finsweet filter values + restart
   setFinsweetFilterValues();
-  if (window.FinsweetAttributes?.modules?.list) {
-    setTimeout(() => window.FinsweetAttributes.modules.list.restart(), 100);
-  }
+  (function restartFinsweetList(retries) {
+    retries = retries == null ? 20 : retries;
+    const listMod = window.FinsweetAttributes?.modules?.list;
+    if (listMod?.restart) {
+      try {
+        const r = listMod.restart();
+        if (r && typeof r.then === "function") {
+          r.then(setFinsweetFilterValues);
+        } else {
+          setTimeout(setFinsweetFilterValues, 50);
+        }
+      } catch (e) {
+        setTimeout(setFinsweetFilterValues, 50);
+      }
+      return;
+    }
+    if (retries > 0) setTimeout(() => restartFinsweetList(retries - 1), 100);
+  })();
 
   // 4. Division description switcher
   const descriptions = document.querySelectorAll(".division-desc");
@@ -1456,6 +1471,62 @@ function restoreLocalizationCurrent() {
 }
 
 // ============================================
+// Border Glow & Shiny Button
+// ============================================
+function initBorderGlow() {
+  document.querySelectorAll(".border-glow-card").forEach(function (card) {
+    if (card.dataset.glowInit) return;
+    card.dataset.glowInit = "1";
+    card.addEventListener("pointermove", function (e) {
+      const r = card.getBoundingClientRect();
+      const cx = r.width / 2;
+      const cy = r.height / 2;
+      const dx = e.clientX - r.left - cx;
+      const dy = e.clientY - r.top - cy;
+      let kx = Infinity;
+      let ky = Infinity;
+      if (dx !== 0) kx = cx / Math.abs(dx);
+      if (dy !== 0) ky = cy / Math.abs(dy);
+      const edge = Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+      let angle = 0;
+      if (dx !== 0 || dy !== 0) {
+        angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+        if (angle < 0) angle += 360;
+      }
+      card.style.setProperty("--edge-proximity", (edge * 100).toFixed(3));
+      card.style.setProperty("--cursor-angle", angle.toFixed(3) + "deg");
+    });
+    card.addEventListener("pointerleave", function () {
+      card.style.setProperty("--edge-proximity", "0");
+    });
+  });
+}
+
+function initShinyBtn() {
+  if (!window.gsap) return;
+  document.querySelectorAll(".shiny-btn-wrapper").forEach(function (box) {
+    if (box.dataset.shinyInit) return;
+    box.dataset.shinyInit = "1";
+    const arrows = box.querySelectorAll(".animation");
+    if (!arrows.length) return;
+    let animating = false;
+    box.addEventListener("mouseenter", function () {
+      if (animating) return;
+      animating = true;
+      window.gsap.to(arrows, {
+        xPercent: "+=100",
+        duration: 0.5,
+        ease: "power2.inOut",
+        onComplete: function () {
+          window.gsap.set(arrows, { xPercent: "-=100" });
+          animating = false;
+        },
+      });
+    });
+  });
+}
+
+// ============================================
 // Exports
 // ============================================
 Object.assign(window, {
@@ -1477,6 +1548,8 @@ Object.assign(window, {
   initLocalizationSwitcher,
   cleanupLocalizationState,
   restoreLocalizationCurrent,
+  initBorderGlow,
+  initShinyBtn,
 });
 
 window.initPageFromMain = function (ns) {
@@ -1493,6 +1566,8 @@ window.initPageFromMain = function (ns) {
   applyTabHeadingState();
   initLocalizationSwitcher();
   restoreLocalizationCurrent();
+  initBorderGlow();
+  initShinyBtn();
 };
 
 window.cleanupPageFromMain = function (prevNs) {
