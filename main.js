@@ -34,32 +34,31 @@ function initRecruitPageFeatures() {
   if (ns !== "recruit") return;
 
   // 1. Position accordion
-  document
-    .querySelectorAll(".position-accordion-trigger")
-    .forEach(function (trigger) {
-      if (trigger.dataset.accordionInit) return;
-      trigger.dataset.accordionInit = "true";
-      trigger.addEventListener("click", function (e) {
-        e.stopPropagation();
-        const clickedItem = trigger.closest(".position-item");
-        const clickedWrapper = clickedItem.querySelector(
-          ".position-detail-wrapper",
-        );
-        const clickedIcon = trigger.querySelector(".position-icon-ver");
-        const isCurrentlyOpen = clickedItem.classList.contains("is-open");
-        document
-          .querySelectorAll(".position-item.is-open")
-          .forEach(function (openItem) {
-            const openIcon = openItem.querySelector(".position-icon-ver");
-            if (openIcon) openIcon.classList.remove("is-open");
-            openItem.classList.remove("is-open");
-          });
-        if (!isCurrentlyOpen) {
-          clickedItem.classList.add("is-open");
-          if (clickedIcon) clickedIcon.classList.add("is-open");
-        }
-      });
+  const recruitContainer =
+    document.querySelector("[data-barba-namespace='recruit']") || document.body;
+  if (!recruitContainer.dataset.accordionDelegate) {
+    recruitContainer.dataset.accordionDelegate = "true";
+    recruitContainer.addEventListener("click", function (e) {
+      const trigger = e.target.closest(".position-accordion-trigger");
+      if (!trigger) return;
+      e.stopPropagation();
+      const clickedItem = trigger.closest(".position-item");
+      if (!clickedItem) return;
+      const clickedIcon = trigger.querySelector(".position-icon-ver");
+      const isCurrentlyOpen = clickedItem.classList.contains("is-open");
+      document
+        .querySelectorAll(".position-item.is-open")
+        .forEach(function (openItem) {
+          const openIcon = openItem.querySelector(".position-icon-ver");
+          if (openIcon) openIcon.classList.remove("is-open");
+          openItem.classList.remove("is-open");
+        });
+      if (!isCurrentlyOpen) {
+        clickedItem.classList.add("is-open");
+        if (clickedIcon) clickedIcon.classList.add("is-open");
+      }
     });
+  }
 
   // 2. Division filter — Close
   document
@@ -1258,6 +1257,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initTabsFallback() {
+  if (!document.querySelector("[data-tab-for]")) return;
   document.querySelectorAll(".w-tabs").forEach((widget) => {
     const links = [...widget.querySelectorAll(".w-tab-link")];
     const panes = [...widget.querySelectorAll(".w-tab-pane")];
