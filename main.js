@@ -154,10 +154,9 @@ function initRecruitPageFeatures() {
 
   // 3. Finsweet filter values + restart
   setFinsweetFilterValues();
-  (function restartFinsweetList(retries) {
-    retries = retries == null ? 20 : retries;
-    const listMod = window.FinsweetAttributes?.modules?.list;
-    if (listMod?.restart) {
+  const listMod = window.FinsweetAttributes?.modules?.list;
+  if (listMod?.restart) {
+    setTimeout(function () {
       try {
         const r = listMod.restart();
         if (r && typeof r.then === "function") {
@@ -168,10 +167,8 @@ function initRecruitPageFeatures() {
       } catch (e) {
         setTimeout(setFinsweetFilterValues, 50);
       }
-      return;
-    }
-    if (retries > 0) setTimeout(() => restartFinsweetList(retries - 1), 100);
-  })();
+    }, 100);
+  }
 
   // 4. Division description switcher
   const descriptions = document.querySelectorAll(".division-desc");
