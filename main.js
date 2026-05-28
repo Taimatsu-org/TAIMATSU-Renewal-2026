@@ -227,11 +227,8 @@ function cleanupRecruitSwiper() {
 
 (function attachRecruitBarbaHook() {
   if (window.barba) {
-    barba.hooks.before(() => {
-      const ns = document
-        .querySelector("[data-barba-namespace]")
-        ?.getAttribute("data-barba-namespace");
-      if (ns === "recruit") cleanupRecruitSwiper();
+    barba.hooks.afterLeave((data) => {
+      if (data.current.namespace === "recruit") cleanupRecruitSwiper();
     });
     barba.hooks.afterEnter(() => setTimeout(initRecruitPageFeatures, 150));
   } else {
@@ -685,11 +682,9 @@ document.addEventListener("DOMContentLoaded", initInterviewTemplate);
 
 (function attachInterviewBarbaHook() {
   if (window.barba) {
-    barba.hooks.before(() => {
-      const ns = document
-        .querySelector("[data-barba-namespace]")
-        ?.getAttribute("data-barba-namespace");
-      if (ns === "interview-cms") cleanupInterviewTemplate();
+    barba.hooks.afterLeave((data) => {
+      if (data.current.namespace === "interview-cms")
+        cleanupInterviewTemplate();
     });
     barba.hooks.afterEnter(() => setTimeout(initInterviewTemplate, 150));
   } else {
@@ -1034,8 +1029,6 @@ function initLineAnimation() {
     { once: true },
   );
 
-  // IX2 の入場アニメーションは最初のスクロール時に transform を解除する。
-  // 初回スクロール後に一度だけ buildPath() を再実行して正確な位置を確保する。
   window.addEventListener(
     "scroll",
     () => {
@@ -1267,9 +1260,6 @@ document.addEventListener("DOMContentLoaded", () => {
 (function attachTabHeadingHook() {
   if (window.barba) {
     barba.hooks.afterEnter(() => {
-      // Webflow.ready() + tabLinks[0].click()（150ms）完了後に適用。
-      // applyTabHeadingState 内で inline style による強制非表示を行うため、
-      // ここで先に display:none する必要はない（Webflow の初期化を妨げるリスクがある）。
       setTimeout(() => {
         applyTabHeadingState();
         initTabHeading();
@@ -1283,12 +1273,6 @@ document.addEventListener("DOMContentLoaded", () => {
 (function attachWebflowReinitHook() {
   if (window.barba) {
     barba.hooks.afterEnter(() => {
-      if (window.Webflow) {
-        window.Webflow.destroy();
-        window.Webflow.ready();
-        window.Webflow.require("ix2").init();
-      }
-
       setTimeout(() => {
         const tabLinks = document.querySelectorAll(".w-tab-link");
         if (!tabLinks.length) return;
@@ -1353,5 +1337,54 @@ document.addEventListener("DOMContentLoaded", initCompanyPage);
     barba.hooks.afterEnter(() => setTimeout(initCompanyPage, 150));
   } else {
     setTimeout(attachCompanyBarbaHook, 100);
+  }
+})();
+
+// ============================================
+// Localization Switcher（言語切換アニメーション）
+// ============================================
+
+function initLocalizationSwitcher() {
+  document.querySelectorAll(".localization-link").forEach((link) => {
+    if (link.dataset.localeInit) return;
+    link.dataset.localeInit = "true";
+
+    link.addEventListener("click", function (e) {
+      if (this.classList.contains("w--current")) {
+        e.preventDefault();
+        return;
+      }
+      if (window.innerWidth < 768) {
+        return;
+      }
+      e.preventDefault();
+      const href = this.getAttribute("href");
+      const wrapper = document.querySelector(".localization-wrapper");
+      const currentLink = document.querySelector(
+        ".localization-link.w--current",
+      );
+      if (wrapper && currentLink) {
+        const targetRect = this.getBoundingClientRect();
+        const currentRect = currentLink.getBoundingClientRect();
+        if (targetRect.left < currentRect.left) {
+          wrapper.classList.add("to-left");
+        }
+      }
+      this.classList.add("target");
+      if (wrapper) wrapper.classList.add("switching");
+      setTimeout(() => {
+        window.location.href = href;
+      }, 200);
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initLocalizationSwitcher);
+
+(function attachLocaleBarbaHook() {
+  if (window.barba) {
+    barba.hooks.afterEnter(() => initLocalizationSwitcher());
+  } else {
+    setTimeout(attachLocaleBarbaHook, 100);
   }
 })();
