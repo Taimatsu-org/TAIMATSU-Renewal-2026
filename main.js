@@ -1376,6 +1376,7 @@ function initTabContentReveal() {
           window.gsap.killTweensOf(targets);
           window.gsap.set(targets, { autoAlpha: 0, y: "2rem" });
         }
+        scrollTabToTop();
         setTimeout(function () {
           playTabContentReveal(
             targetPane || widget.querySelector(".w-tab-pane.w--tab-active"),
