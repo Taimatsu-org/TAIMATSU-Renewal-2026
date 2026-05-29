@@ -1314,20 +1314,27 @@ function initTabsFallback() {
 // ============================================
 // Tab Content Reveal
 // ============================================
+function tabRevealTargets(pane) {
+  return pane && pane.children.length ? pane.children : null;
+}
+
 function prepTabContentReveal(root) {
   if (!window.gsap) return;
   const scope = root || document;
   scope.querySelectorAll(".w-tabs").forEach(function (widget) {
-    const pane = widget.querySelector(".w-tab-pane.w--tab-active");
-    if (pane) window.gsap.set(pane, { autoAlpha: 0, y: "2rem" });
+    const targets = tabRevealTargets(
+      widget.querySelector(".w-tab-pane.w--tab-active"),
+    );
+    if (targets) window.gsap.set(targets, { autoAlpha: 0, y: "2rem" });
   });
 }
 
 function playTabContentReveal(pane) {
-  if (!pane || !window.gsap) return;
-  window.gsap.killTweensOf(pane);
+  const targets = tabRevealTargets(pane);
+  if (!targets || !window.gsap) return;
+  window.gsap.killTweensOf(targets);
   window.gsap.fromTo(
-    pane,
+    targets,
     { autoAlpha: 0, y: "2rem" },
     {
       autoAlpha: 1,
@@ -1350,9 +1357,10 @@ function initTabContentReveal() {
         const targetPane = tabId
           ? widget.querySelector('.w-tab-pane[data-w-tab="' + tabId + '"]')
           : null;
-        if (targetPane && window.gsap) {
-          window.gsap.killTweensOf(targetPane);
-          window.gsap.set(targetPane, { autoAlpha: 0, y: "2rem" });
+        const targets = tabRevealTargets(targetPane);
+        if (targets && window.gsap) {
+          window.gsap.killTweensOf(targets);
+          window.gsap.set(targets, { autoAlpha: 0, y: "2rem" });
         }
         setTimeout(function () {
           playTabContentReveal(
