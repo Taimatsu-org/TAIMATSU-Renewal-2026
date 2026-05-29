@@ -907,6 +907,10 @@
       if (typeof initCountUpAnimations === 'function') initCountUpAnimations();
       if (typeof initPieChart === 'function') initPieChart();
     }
+    // barba swapped the DOM — tell Finsweet to re-scan it so the new page's
+    // list (filter / pagination / items) re-renders. Only here, never on first
+    // load (resetWebflow runs only on barba navigation).
+    if (typeof window.reinitFinsweet === 'function') window.reinitFinsweet();
     if (typeof window.initPageFromMain === 'function') {
       window.initPageFromMain(ns);
     }

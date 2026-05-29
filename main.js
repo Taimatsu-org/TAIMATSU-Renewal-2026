@@ -27,6 +27,19 @@ function setFinsweetFilterValues() {
   if (allBtn) allBtn.setAttribute("fs-list-value", "");
 }
 
+// Barba swaps the DOM without a page reload, so Finsweet (already loaded from
+// the first page) must be told to re-scan the new container — otherwise the
+// list never re-renders and filter / pagination / the items themselves are
+// missing. Call this ONLY on a barba navigation (not first load, where
+// Finsweet auto-initializes). @finsweet/attributes@2.7 exposes destroy + load.
+function reinitFinsweet() {
+  const fs = window.FinsweetAttributes;
+  if (!fs || typeof fs.destroy !== "function" || typeof fs.load !== "function")
+    return;
+  fs.destroy();
+  fs.load("list");
+}
+
 function initRecruitPageFeatures() {
   const ns = document
     .querySelector("[data-barba-namespace]")
@@ -1668,6 +1681,7 @@ function initReadBlogsButton() {
 // ============================================
 Object.assign(window, {
   setFinsweetFilterValues,
+  reinitFinsweet,
   initRecruitPageFeatures,
   cleanupRecruitSwiper,
   initInterviewTemplate,
