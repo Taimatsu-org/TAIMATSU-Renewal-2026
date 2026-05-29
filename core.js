@@ -922,7 +922,9 @@
       if (ns2 === 'home' && typeof initBestVentureButton === 'function') initBestVentureButton();
     }, 100);
   }
-  // Barba hooks
+  // Barba hooks — guarded so a missing barba / barbaPrefetch CDN can't throw
+  // here and stop the DOMContentLoaded init (below) from ever registering.
+  if (typeof barba !== 'undefined') {
   barba.hooks.before(() => closeMobileMenu());
   barba.hooks.afterLeave((data) => {
     if (typeof window.cleanupPageFromMain === 'function') {
@@ -941,7 +943,7 @@
     resetWebflow(data);
   });
   // Barba init
-  barba.use(barbaPrefetch);
+  if (typeof barbaPrefetch !== 'undefined') barba.use(barbaPrefetch);
   barba.init({
     preventRunning: true,
     timeout: 10000,
@@ -1009,6 +1011,7 @@
       },
     ],
   });
+  }
   // Init
   document.addEventListener('DOMContentLoaded', async () => {
     const ns = document.querySelector('[data-barba-namespace]')?.getAttribute('data-barba-namespace');
@@ -1017,8 +1020,11 @@
     initWebflowURLCleanup();
     updateNavbarColors();
     if (typeof initFlashHover === 'function') initFlashHover();
-    if (isHome && !sessionStorage.getItem('barba-navigated')) await initSiteLoader();
-    else {
+    if (isHome && !sessionStorage.getItem('barba-navigated') && typeof initSiteLoader === 'function') {
+      await initSiteLoader();
+    } else {
+      // No site loader to run (or not home) — clear the loading state so it
+      // can never keep the page from scrolling.
       const loader = document.getElementById('site-loader');
       if (loader) loader.style.display = 'none';
       document.documentElement.classList.remove('is-loading');
