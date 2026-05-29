@@ -154,23 +154,9 @@ function initRecruitPageFeatures() {
 
   // 3. Finsweet filter values + restart
   setFinsweetFilterValues();
-  (async function reinitFinsweetList() {
-    const listMod = window.FinsweetAttributes?.modules?.list;
-    if (!listMod) return;
-    try {
-      if (listMod.loading && typeof listMod.loading.then === "function") {
-        await listMod.loading;
-      }
-      setFinsweetFilterValues();
-      if (typeof listMod.restart === "function") {
-        const r = listMod.restart();
-        if (r && typeof r.then === "function") await r;
-      }
-      setFinsweetFilterValues();
-    } catch (e) {
-      setFinsweetFilterValues();
-    }
-  })();
+  if (typeof window.FinsweetAttributes?.modules?.list?.restart === "function") {
+    window.FinsweetAttributes.modules.list.restart();
+  }
 
   // 4. Division description switcher
   const descriptions = document.querySelectorAll(".division-desc");
