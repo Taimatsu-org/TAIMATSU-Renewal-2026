@@ -1346,9 +1346,17 @@ function initTabContentReveal() {
       if (link.dataset.tabRevealInit) return;
       link.dataset.tabRevealInit = "true";
       link.addEventListener("click", function () {
+        const tabId = link.getAttribute("data-w-tab");
+        const targetPane = tabId
+          ? widget.querySelector('.w-tab-pane[data-w-tab="' + tabId + '"]')
+          : null;
+        if (targetPane && window.gsap) {
+          window.gsap.killTweensOf(targetPane);
+          window.gsap.set(targetPane, { autoAlpha: 0, y: "2rem" });
+        }
         setTimeout(function () {
           playTabContentReveal(
-            widget.querySelector(".w-tab-pane.w--tab-active"),
+            targetPane || widget.querySelector(".w-tab-pane.w--tab-active"),
           );
         }, 50);
       });
