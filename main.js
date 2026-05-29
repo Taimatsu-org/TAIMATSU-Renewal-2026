@@ -1,24 +1,14 @@
-// Defensive: registerPageModule is defined in core.js; tolerate either load
-// order so module registrations below never throw.
-window.__pageModules = window.__pageModules || [];
-window.registerPageModule =
-  window.registerPageModule ||
-  function (mod) {
-    (window.__pageModules = window.__pageModules || []).push(mod);
-  };
-
 window.FinsweetAttributes ||= [];
 window.FinsweetAttributes.push([
   "list",
-  () => {
-    // Finsweet finished (re)rendering the list — sync up recruit state.
-    if (recruitIsActive()) applyRecruitRenderState();
+  (lists) => {
+    const ns = document
+      .querySelector("[data-barba-namespace]")
+      ?.getAttribute("data-barba-namespace");
+    if (ns !== "recruit") return;
+    setFinsweetFilterValues();
   },
 ]);
-
-// Register the permanent recruit delegation as soon as main.js loads, so it
-// never depends on the page lifecycle (and therefore on load timing) running.
-if (typeof initRecruitDelegation === "function") initRecruitDelegation();
 
 function setFinsweetFilterValues() {
   document
@@ -37,269 +27,277 @@ function setFinsweetFilterValues() {
   if (allBtn) allBtn.setAttribute("fs-list-value", "");
 }
 
-// ============================================
-// Recruit page — shared helpers (module scope)
-// ============================================
-const RECRUIT_SCROLL_OFFSET = 100;
+function initRecruitPageFeatures() {
+  const ns = document
+    .querySelector("[data-barba-namespace]")
+    ?.getAttribute("data-barba-namespace");
+  if (ns !== "recruit") return;
 
-function recruitIsActive() {
-  return (
-    document
-      .querySelector("[data-barba-namespace]")
-      ?.getAttribute("data-barba-namespace") === "recruit"
+  // 1. Position accordion
+  const recruitContainer = document.querySelector(
+    "[data-barba-namespace='recruit']",
   );
-}
+  if (recruitContainer && !recruitContainer.dataset.accordionDelegate) {
+    recruitContainer.dataset.accordionDelegate = "true";
 
-function recruitScrollToY(y) {
-  if (y == null) return;
-  if (window.lenis?.scrollTo) {
-    window.lenis.scrollTo(y, { duration: 1 });
-  } else if (window.gsap?.to) {
-    window.gsap.to(window, {
-      duration: 1,
-      scrollTo: { y, autoKill: false },
-      ease: "power2.inOut",
-    });
-  } else {
-    window.scrollTo({ top: y, behavior: "smooth" });
-  }
-}
+    const ACCORDION_SCROLL_OFFSET = 100;
 
-function recruitComputeFinalTargetY(clickedItem) {
-  let collapseDelta = 0;
-  document
-    .querySelectorAll(".position-item.is-open")
-    .forEach(function (openItem) {
-      if (openItem === clickedItem) return;
-      const rel = openItem.compareDocumentPosition(clickedItem);
-      const isAboveClicked = rel & Node.DOCUMENT_POSITION_FOLLOWING;
-      if (!isAboveClicked) return;
-      const t = openItem.querySelector(".position-accordion-trigger");
-      const closedH = t ? t.getBoundingClientRect().height : 0;
-      const openH = openItem.getBoundingClientRect().height;
-      collapseDelta += Math.max(0, openH - closedH);
-    });
-  const currentTop =
-    clickedItem.getBoundingClientRect().top + window.pageYOffset;
-  return currentTop - collapseDelta - RECRUIT_SCROLL_OFFSET;
-}
+    function computeFinalTargetY(clickedItem) {
+      let collapseDelta = 0;
+      document
+        .querySelectorAll(".position-item.is-open")
+        .forEach(function (openItem) {
+          if (openItem === clickedItem) return;
+          const rel = openItem.compareDocumentPosition(clickedItem);
+          const isAboveClicked = rel & Node.DOCUMENT_POSITION_FOLLOWING;
+          if (!isAboveClicked) return;
+          const t = openItem.querySelector(".position-accordion-trigger");
+          const closedH = t ? t.getBoundingClientRect().height : 0;
+          const openH = openItem.getBoundingClientRect().height;
+          collapseDelta += Math.max(0, openH - closedH);
+        });
+      const currentTop =
+        clickedItem.getBoundingClientRect().top + window.pageYOffset;
+      return currentTop - collapseDelta - ACCORDION_SCROLL_OFFSET;
+    }
 
-function recruitCloseAllPositions() {
-  document.querySelectorAll(".position-item.is-open").forEach(function (item) {
-    const icon = item.querySelector(".position-icon-ver");
-    if (icon) icon.classList.remove("is-open");
-    item.classList.remove("is-open");
-  });
-}
+    function scrollToY(y) {
+      if (window.lenis?.scrollTo) {
+        window.lenis.scrollTo(y, { duration: 1 });
+      } else if (window.gsap?.to) {
+        window.gsap.to(window, {
+          duration: 1,
+          scrollTo: { y, autoKill: false },
+          ease: "power2.inOut",
+        });
+      } else {
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }
 
-function recruitScrollToListTop() {
-  const listEl =
-    document.querySelector('[fs-list-element="list"]') ||
-    document.querySelector(".position-list") ||
-    document.querySelector(".position-item")?.parentElement;
-  if (!listEl) return;
-  const targetY =
-    listEl.getBoundingClientRect().top +
-    window.pageYOffset -
-    RECRUIT_SCROLL_OFFSET;
-  if (window.pageYOffset <= targetY) return;
-  recruitScrollToY(targetY);
-}
-
-function updateRecruitDescriptions() {
-  const descriptions = document.querySelectorAll(".division-desc");
-  if (!descriptions.length) return;
-  const emptyMsg = document.querySelector(".description-empty");
-  const checkedRadio = document.querySelector(
-    '[fs-list-element="filters"] input[type="radio"]:checked',
-  );
-  let selectedDivision = null;
-  if (checkedRadio) {
-    const span = checkedRadio
-      .closest("label, .w-radio")
-      ?.querySelector("[fs-list-value]");
-    selectedDivision = span?.getAttribute("fs-list-value");
-  }
-  if (!selectedDivision) {
-    descriptions.forEach((d) => d.classList.remove("is-active"));
-    if (emptyMsg) emptyMsg.style.display = "";
-  } else {
-    descriptions.forEach((d) => {
-      d.classList.toggle(
-        "is-active",
-        d.getAttribute("data-division") === selectedDivision,
-      );
-    });
-    if (emptyMsg) emptyMsg.style.display = "none";
-  }
-}
-
-// Permanent document-level delegation. Registered once and never torn down, so
-// position accordion + division filter work regardless of when Finsweet renders
-// the list, what barba does to the container, or the order core.js/main.js load.
-function initRecruitDelegation() {
-  if (window._recruitDelegationInit) return;
-  window._recruitDelegationInit = true;
-
-  document.addEventListener("click", function (e) {
-    if (!recruitIsActive()) return;
-
-    const trigger = e.target.closest(".position-accordion-trigger");
-    if (trigger) {
+    recruitContainer.addEventListener("click", function (e) {
+      const trigger = e.target.closest(".position-accordion-trigger");
+      if (!trigger) return;
       e.stopPropagation();
       const clickedItem = trigger.closest(".position-item");
       if (!clickedItem) return;
       const clickedIcon = trigger.querySelector(".position-icon-ver");
       const isCurrentlyOpen = clickedItem.classList.contains("is-open");
+
       const targetY = !isCurrentlyOpen
-        ? recruitComputeFinalTargetY(clickedItem)
+        ? computeFinalTargetY(clickedItem)
         : null;
-      recruitCloseAllPositions();
+
+      document
+        .querySelectorAll(".position-item.is-open")
+        .forEach(function (openItem) {
+          const openIcon = openItem.querySelector(".position-icon-ver");
+          if (openIcon) openIcon.classList.remove("is-open");
+          openItem.classList.remove("is-open");
+        });
       if (!isCurrentlyOpen) {
         clickedItem.classList.add("is-open");
         if (clickedIcon) clickedIcon.classList.add("is-open");
-        recruitScrollToY(targetY);
+        scrollToY(targetY);
       }
-      return;
-    }
-
-    if (e.target.closest('[fs-list-element="clear"]')) {
-      recruitCloseAllPositions();
-      recruitScrollToListTop();
-      setTimeout(updateRecruitDescriptions, 50);
-    }
-  });
-
-  document.addEventListener("change", function (e) {
-    if (!recruitIsActive()) return;
-    if (e.target.closest('input[name="division-filter"]')) {
-      recruitCloseAllPositions();
-      recruitScrollToListTop();
-    }
-    if (e.target.closest('[fs-list-element="filters"] input[type="radio"]')) {
-      setTimeout(updateRecruitDescriptions, 50);
-    }
-  });
-}
-
-function initRecruitStaffSwiper() {
-  const swiperEl = document.querySelector(".staff-voices-swiper");
-  if (!swiperEl || swiperEl.dataset.staffSwiperInit) return;
-  swiperEl.dataset.staffSwiperInit = "true";
-  cleanupRecruitSwiper();
-
-  const SLIDE_DURATION = 5000;
-  let isSwitching = false;
-  let activeThumbSvg = null;
-
-  const staffVoicesThumbs = new Swiper(".staff-voices-thumbs", {
-    slidesPerView: 4,
-    spaceBetween: 16,
-    freeMode: true,
-    watchSlidesProgress: true,
-    slideToClickedSlide: true,
-    observer: true,
-    observeParents: true,
-    observeSlideChildren: true,
-    breakpoints: {
-      0: { slidesPerView: "auto", spaceBetween: 12 },
-      992: { slidesPerView: 4, spaceBetween: 16 },
-    },
-  });
-
-  function setupAllPaths() {
-    document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
-      svg.style.clipPath = "inset(0 100% 0 0)";
     });
   }
-  function hideAllLines() {
-    document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
-      svg.style.clipPath = "inset(0 100% 0 0)";
-    });
+
+  // 2. Division filter — Close + scroll to list top
+  const FILTER_SCROLL_OFFSET = 100;
+  function scrollToPositionListTop() {
+    const listEl =
+      document.querySelector('[fs-list-element="list"]') ||
+      document.querySelector(".position-list") ||
+      document.querySelector(".position-item")?.parentElement;
+    if (!listEl) return;
+    const targetY =
+      listEl.getBoundingClientRect().top +
+      window.pageYOffset -
+      FILTER_SCROLL_OFFSET;
+    if (window.pageYOffset <= targetY) return;
+    if (window.lenis?.scrollTo) {
+      window.lenis.scrollTo(targetY, { duration: 0.8 });
+    } else if (window.gsap?.to) {
+      window.gsap.to(window, {
+        duration: 0.8,
+        scrollTo: { y: targetY, autoKill: false },
+        ease: "power2.inOut",
+      });
+    } else {
+      window.scrollTo({ top: targetY, behavior: "smooth" });
+    }
   }
-  function refreshActiveThumbSvg() {
-    activeThumbSvg = document.querySelector(
-      ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
-    );
-  }
-  function settleThumbProgress() {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setupAllPaths();
-        refreshActiveThumbSvg();
-        staffVoicesThumbs.update();
-        if (window.staffVoicesMain) window.staffVoicesMain.update();
+
+  document
+    .querySelectorAll('input[name="division-filter"]')
+    .forEach(function (radio) {
+      if (radio.dataset.filterResetInit) return;
+      radio.dataset.filterResetInit = "true";
+      radio.addEventListener("change", function () {
+        document
+          .querySelectorAll(".position-item.is-open")
+          .forEach(function (item) {
+            const icon = item.querySelector(".position-icon-ver");
+            if (icon) icon.classList.remove("is-open");
+            item.classList.remove("is-open");
+          });
+        scrollToPositionListTop();
       });
     });
+
+  const filterClearBtn = document.querySelector('[fs-list-element="clear"]');
+  if (filterClearBtn && !filterClearBtn.dataset.filterScrollInit) {
+    filterClearBtn.dataset.filterScrollInit = "true";
+    filterClearBtn.addEventListener("click", scrollToPositionListTop);
   }
 
-  let resizeTimer;
-  window._staffVoicesResize = () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(setupAllPaths, 200);
-  };
-  window.addEventListener("resize", window._staffVoicesResize);
-
-  const staffVoicesMain = new Swiper(".staff-voices-swiper", {
-    slidesPerView: 1,
-    effect: "fade",
-    fadeEffect: { crossFade: true },
-    speed: 1000,
-    allowTouchMove: false,
-    autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
-    thumbs: { swiper: staffVoicesThumbs },
-    observer: true,
-    observeParents: true,
-    observeSlideChildren: true,
-    on: {
-      init() {
-        setupAllPaths();
-      },
-      afterInit() {
-        settleThumbProgress();
-      },
-      imagesReady() {
-        settleThumbProgress();
-      },
-      autoplayTimeLeft(s, time, progress) {
-        if (isSwitching || !activeThumbSvg) return;
-        activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
-      },
-      slideChangeTransitionStart() {
-        isSwitching = true;
-      },
-      slideChangeTransitionEnd() {
-        hideAllLines();
-        isSwitching = false;
-        refreshActiveThumbSvg();
-        if (window.innerWidth < 992) {
-          staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
-        }
-      },
-    },
-  });
-
-  window.staffVoicesMain = staffVoicesMain;
-  window.staffVoicesThumbs = staffVoicesThumbs;
-
-  if (document.fonts?.ready) {
-    document.fonts.ready.then(settleThumbProgress);
+  // 3. Division description switcher
+  const descriptions = document.querySelectorAll(".division-desc");
+  const emptyMsg = document.querySelector(".description-empty");
+  if (descriptions.length) {
+    function update() {
+      const checkedRadio = document.querySelector(
+        '[fs-list-element="filters"] input[type="radio"]:checked',
+      );
+      let selectedDivision = null;
+      if (checkedRadio) {
+        const span = checkedRadio
+          .closest("label, .w-radio")
+          ?.querySelector("[fs-list-value]");
+        selectedDivision = span?.getAttribute("fs-list-value");
+      }
+      if (!selectedDivision) {
+        descriptions.forEach((d) => d.classList.remove("is-active"));
+        if (emptyMsg) emptyMsg.style.display = "";
+      } else {
+        descriptions.forEach((d) => {
+          d.classList.toggle(
+            "is-active",
+            d.getAttribute("data-division") === selectedDivision,
+          );
+        });
+        if (emptyMsg) emptyMsg.style.display = "none";
+      }
+    }
+    document
+      .querySelectorAll('[fs-list-element="filters"] input[type="radio"]')
+      .forEach((input) => {
+        if (input.dataset.descSwitcherInit) return;
+        input.dataset.descSwitcherInit = "true";
+        input.addEventListener("change", () => setTimeout(update, 50));
+      });
+    const clearBtn = document.querySelector('[fs-list-element="clear"]');
+    if (clearBtn && !clearBtn.dataset.descSwitcherInit) {
+      clearBtn.dataset.descSwitcherInit = "true";
+      clearBtn.addEventListener("click", () => setTimeout(update, 50));
+    }
+    update();
   }
-  window.addEventListener("load", settleThumbProgress, { once: true });
-}
 
-// Render-dependent state: safe to call repeatedly (each piece is idempotent).
-function applyRecruitRenderState() {
-  if (!recruitIsActive()) return;
-  setFinsweetFilterValues();
-  updateRecruitDescriptions();
-  initRecruitStaffSwiper();
-}
+  // 4. Staff Voices Swiper
+  if (document.querySelector(".staff-voices-swiper")) {
+    cleanupRecruitSwiper();
 
-function initRecruitPageFeatures() {
-  if (!recruitIsActive()) return;
-  initRecruitDelegation();
-  applyRecruitRenderState();
+    const SLIDE_DURATION = 5000;
+    let isSwitching = false;
+    let activeThumbSvg = null;
+
+    const staffVoicesThumbs = new Swiper(".staff-voices-thumbs", {
+      slidesPerView: 4,
+      spaceBetween: 16,
+      freeMode: true,
+      watchSlidesProgress: true,
+      slideToClickedSlide: true,
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
+      breakpoints: {
+        0: { slidesPerView: "auto", spaceBetween: 12 },
+        992: { slidesPerView: 4, spaceBetween: 16 },
+      },
+    });
+
+    function setupAllPaths() {
+      document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
+        svg.style.clipPath = "inset(0 100% 0 0)";
+      });
+    }
+    function hideAllLines() {
+      document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
+        svg.style.clipPath = "inset(0 100% 0 0)";
+      });
+    }
+    function refreshActiveThumbSvg() {
+      activeThumbSvg = document.querySelector(
+        ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
+      );
+    }
+    function settleThumbProgress() {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setupAllPaths();
+          refreshActiveThumbSvg();
+          staffVoicesThumbs.update();
+          if (window.staffVoicesMain) window.staffVoicesMain.update();
+        });
+      });
+    }
+
+    let resizeTimer;
+    window._staffVoicesResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(setupAllPaths, 200);
+    };
+    window.addEventListener("resize", window._staffVoicesResize);
+
+    const staffVoicesMain = new Swiper(".staff-voices-swiper", {
+      slidesPerView: 1,
+      effect: "fade",
+      fadeEffect: { crossFade: true },
+      speed: 1000,
+      allowTouchMove: false,
+      autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
+      thumbs: { swiper: staffVoicesThumbs },
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
+      on: {
+        init() {
+          setupAllPaths();
+        },
+        afterInit() {
+          settleThumbProgress();
+        },
+        imagesReady() {
+          settleThumbProgress();
+        },
+        autoplayTimeLeft(s, time, progress) {
+          if (isSwitching || !activeThumbSvg) return;
+          activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
+        },
+        slideChangeTransitionStart() {
+          isSwitching = true;
+        },
+        slideChangeTransitionEnd() {
+          hideAllLines();
+          isSwitching = false;
+          refreshActiveThumbSvg();
+          if (window.innerWidth < 992) {
+            staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
+          }
+        },
+      },
+    });
+
+    window.staffVoicesMain = staffVoicesMain;
+    window.staffVoicesThumbs = staffVoicesThumbs;
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(settleThumbProgress);
+    }
+    window.addEventListener("load", settleThumbProgress, { once: true });
+  }
 }
 
 function cleanupRecruitSwiper() {
@@ -1395,14 +1393,6 @@ function initTabContentReveal() {
 // ============================================
 let _companyObserver = null;
 
-function companyIsActive() {
-  return (
-    document
-      .querySelector("[data-barba-namespace]")
-      ?.getAttribute("data-barba-namespace") === "company"
-  );
-}
-
 function cleanupCompanyPage() {
   if (_companyObserver) {
     _companyObserver.disconnect();
@@ -1410,23 +1400,20 @@ function cleanupCompanyPage() {
   }
 }
 
-function buildCompanyObserver() {
-  if (!companyIsActive()) return false;
-  if (_companyObserver) return true;
+function initCompanyPage() {
+  cleanupCompanyPage();
 
   const sections = document.querySelectorAll(".each-division");
   const shapes = [
     ...document.querySelectorAll(".interaction-wrapper"),
   ].reverse();
-  if (!sections.length || !shapes.length) return false;
-
-  cleanupCompanyPage();
+  if (!sections.length || !shapes.length) return;
 
   _companyObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         const index = [...sections].indexOf(entry.target);
-        if (index === -1 || !shapes[index]) return;
+        if (index === -1) return;
         if (entry.isIntersecting) {
           shapes[index].classList.add("is-active");
           shapes.forEach((s, i) => {
@@ -1441,11 +1428,6 @@ function buildCompanyObserver() {
   );
 
   sections.forEach((s) => _companyObserver.observe(s));
-  return true;
-}
-
-function initCompanyPage() {
-  buildCompanyObserver();
 }
 
 // ============================================
@@ -1687,10 +1669,6 @@ Object.assign(window, {
   setFinsweetFilterValues,
   restartFinsweetList,
   initRecruitPageFeatures,
-  initRecruitDelegation,
-  applyRecruitRenderState,
-  updateRecruitDescriptions,
-  initRecruitStaffSwiper,
   cleanupRecruitSwiper,
   initInterviewTemplate,
   cleanupInterviewTemplate,
@@ -1705,7 +1683,6 @@ Object.assign(window, {
   initTabContentReveal,
   prepTabContentReveal,
   initCompanyPage,
-  buildCompanyObserver,
   cleanupCompanyPage,
   initLocalizationSwitcher,
   cleanupLocalizationState,
@@ -1717,65 +1694,32 @@ Object.assign(window, {
   initReadBlogsButton,
 });
 
-// ============================================
-// Page module registrations
-// Each feature is wired up ONCE here; the lifecycle in core.js (enterPage /
-// leavePage) runs them on first load and every barba navigation, re-running
-// across settle passes and cleaning up on leave. To add a new feature, add one
-// registerPageModule({...}) call — nothing else to touch.
-//   - default modules re-run every settle pass → init MUST be idempotent
-//     (guard with a data-* flag / element check).
-//   - once:true → run once per page enter (heavy setups that self-manage timing).
-// ============================================
+window.initPageFromMain = function (ns) {
+  if (ns === "recruit") initRecruitPageFeatures();
+  else if (ns === "interview-cms") initInterviewTemplate();
+  else if (ns === "company") initCompanyPage();
 
-// Page-specific
-registerPageModule({
-  name: "recruitFeatures",
-  namespaces: ["recruit"],
-  init: initRecruitPageFeatures,
-  cleanup: cleanupRecruitSwiper,
-});
-registerPageModule({
-  name: "interviewTemplate",
-  namespaces: ["interview-cms"],
-  once: true,
-  init: initInterviewTemplate,
-  cleanup: cleanupInterviewTemplate,
-});
-registerPageModule({
-  name: "companyDivisionSVG",
-  namespaces: ["company"],
-  init: initCompanyPage,
-  cleanup: cleanupCompanyPage,
-});
+  initLineAnimation();
+  initJoinedYearLabel();
+  initTabFromURL();
+  initTabFlashReveal();
+  initTabsFallback();
+  initTabHeading();
+  initTabContentReveal();
+  applyTabHeadingState();
+  initLocalizationSwitcher();
+  restoreLocalizationCurrent();
+  initBorderGlow();
+  initShinyBtn();
+  initInterviewCardArrow();
+  initReadBlogsButton();
+  restartFinsweetList();
+};
 
-// Global (every page)
-registerPageModule({
-  name: "lineAnimation",
-  namespaces: "*",
-  once: true,
-  init: initLineAnimation,
-  cleanup: cleanupLineAnimation,
-});
-registerPageModule({ name: "joinedYearLabel", namespaces: "*", init: initJoinedYearLabel });
-registerPageModule({ name: "tabFromURL", namespaces: "*", once: true, init: initTabFromURL });
-registerPageModule({ name: "tabFlashReveal", namespaces: "*", init: initTabFlashReveal });
-registerPageModule({ name: "tabsFallback", namespaces: "*", init: initTabsFallback });
-registerPageModule({ name: "tabHeading", namespaces: "*", init: initTabHeading });
-registerPageModule({ name: "tabContentReveal", namespaces: "*", init: initTabContentReveal });
-registerPageModule({ name: "tabHeadingState", namespaces: "*", init: applyTabHeadingState });
-registerPageModule({
-  name: "localization",
-  namespaces: "*",
-  init: () => {
-    initLocalizationSwitcher();
-    restoreLocalizationCurrent();
-  },
-  cleanup: cleanupLocalizationState,
-});
-registerPageModule({ name: "borderGlow", namespaces: "*", init: initBorderGlow });
-registerPageModule({ name: "shinyBtn", namespaces: "*", init: initShinyBtn });
-registerPageModule({ name: "interviewCardArrow", namespaces: "*", init: initInterviewCardArrow });
-registerPageModule({ name: "readBlogsButton", namespaces: "*", init: initReadBlogsButton });
-// Finsweet restart last, mirroring the original ordering.
-registerPageModule({ name: "finsweetRestart", namespaces: "*", once: true, init: restartFinsweetList });
+window.cleanupPageFromMain = function (prevNs) {
+  cleanupLineAnimation();
+  cleanupLocalizationState();
+  if (prevNs === "recruit") cleanupRecruitSwiper();
+  else if (prevNs === "interview-cms") cleanupInterviewTemplate();
+  else if (prevNs === "company") cleanupCompanyPage();
+};
