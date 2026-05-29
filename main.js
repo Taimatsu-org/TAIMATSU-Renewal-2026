@@ -1,14 +1,15 @@
 window.FinsweetAttributes ||= [];
 window.FinsweetAttributes.push([
   "list",
-  (lists) => {
-    const ns = document
-      .querySelector("[data-barba-namespace]")
-      ?.getAttribute("data-barba-namespace");
-    if (ns !== "recruit") return;
-    setFinsweetFilterValues();
+  () => {
+    // Finsweet finished (re)rendering the list — sync up recruit state.
+    if (recruitIsActive()) applyRecruitRenderState();
   },
 ]);
+
+// Register the permanent recruit delegation as soon as main.js loads, so it
+// never depends on initPageFromMain (and therefore on core.js timing) running.
+if (typeof initRecruitDelegation === "function") initRecruitDelegation();
 
 function setFinsweetFilterValues() {
   document
@@ -27,277 +28,274 @@ function setFinsweetFilterValues() {
   if (allBtn) allBtn.setAttribute("fs-list-value", "");
 }
 
-function initRecruitPageFeatures() {
-  const ns = document
-    .querySelector("[data-barba-namespace]")
-    ?.getAttribute("data-barba-namespace");
-  if (ns !== "recruit") return;
+// ============================================
+// Recruit page — shared helpers (module scope)
+// ============================================
+const RECRUIT_SCROLL_OFFSET = 100;
 
-  // 1. Position accordion
-  const recruitContainer = document.querySelector(
-    "[data-barba-namespace='recruit']",
+function recruitIsActive() {
+  return (
+    document
+      .querySelector("[data-barba-namespace]")
+      ?.getAttribute("data-barba-namespace") === "recruit"
   );
-  if (recruitContainer && !recruitContainer.dataset.accordionDelegate) {
-    recruitContainer.dataset.accordionDelegate = "true";
+}
 
-    const ACCORDION_SCROLL_OFFSET = 100;
+function recruitScrollToY(y) {
+  if (y == null) return;
+  if (window.lenis?.scrollTo) {
+    window.lenis.scrollTo(y, { duration: 1 });
+  } else if (window.gsap?.to) {
+    window.gsap.to(window, {
+      duration: 1,
+      scrollTo: { y, autoKill: false },
+      ease: "power2.inOut",
+    });
+  } else {
+    window.scrollTo({ top: y, behavior: "smooth" });
+  }
+}
 
-    function computeFinalTargetY(clickedItem) {
-      let collapseDelta = 0;
-      document
-        .querySelectorAll(".position-item.is-open")
-        .forEach(function (openItem) {
-          if (openItem === clickedItem) return;
-          const rel = openItem.compareDocumentPosition(clickedItem);
-          const isAboveClicked = rel & Node.DOCUMENT_POSITION_FOLLOWING;
-          if (!isAboveClicked) return;
-          const t = openItem.querySelector(".position-accordion-trigger");
-          const closedH = t ? t.getBoundingClientRect().height : 0;
-          const openH = openItem.getBoundingClientRect().height;
-          collapseDelta += Math.max(0, openH - closedH);
-        });
-      const currentTop =
-        clickedItem.getBoundingClientRect().top + window.pageYOffset;
-      return currentTop - collapseDelta - ACCORDION_SCROLL_OFFSET;
-    }
+function recruitComputeFinalTargetY(clickedItem) {
+  let collapseDelta = 0;
+  document
+    .querySelectorAll(".position-item.is-open")
+    .forEach(function (openItem) {
+      if (openItem === clickedItem) return;
+      const rel = openItem.compareDocumentPosition(clickedItem);
+      const isAboveClicked = rel & Node.DOCUMENT_POSITION_FOLLOWING;
+      if (!isAboveClicked) return;
+      const t = openItem.querySelector(".position-accordion-trigger");
+      const closedH = t ? t.getBoundingClientRect().height : 0;
+      const openH = openItem.getBoundingClientRect().height;
+      collapseDelta += Math.max(0, openH - closedH);
+    });
+  const currentTop =
+    clickedItem.getBoundingClientRect().top + window.pageYOffset;
+  return currentTop - collapseDelta - RECRUIT_SCROLL_OFFSET;
+}
 
-    function scrollToY(y) {
-      if (window.lenis?.scrollTo) {
-        window.lenis.scrollTo(y, { duration: 1 });
-      } else if (window.gsap?.to) {
-        window.gsap.to(window, {
-          duration: 1,
-          scrollTo: { y, autoKill: false },
-          ease: "power2.inOut",
-        });
-      } else {
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
-    }
+function recruitCloseAllPositions() {
+  document.querySelectorAll(".position-item.is-open").forEach(function (item) {
+    const icon = item.querySelector(".position-icon-ver");
+    if (icon) icon.classList.remove("is-open");
+    item.classList.remove("is-open");
+  });
+}
 
-    recruitContainer.addEventListener("click", function (e) {
-      const trigger = e.target.closest(".position-accordion-trigger");
-      if (!trigger) return;
+function recruitScrollToListTop() {
+  const listEl =
+    document.querySelector('[fs-list-element="list"]') ||
+    document.querySelector(".position-list") ||
+    document.querySelector(".position-item")?.parentElement;
+  if (!listEl) return;
+  const targetY =
+    listEl.getBoundingClientRect().top +
+    window.pageYOffset -
+    RECRUIT_SCROLL_OFFSET;
+  if (window.pageYOffset <= targetY) return;
+  recruitScrollToY(targetY);
+}
+
+function updateRecruitDescriptions() {
+  const descriptions = document.querySelectorAll(".division-desc");
+  if (!descriptions.length) return;
+  const emptyMsg = document.querySelector(".description-empty");
+  const checkedRadio = document.querySelector(
+    '[fs-list-element="filters"] input[type="radio"]:checked',
+  );
+  let selectedDivision = null;
+  if (checkedRadio) {
+    const span = checkedRadio
+      .closest("label, .w-radio")
+      ?.querySelector("[fs-list-value]");
+    selectedDivision = span?.getAttribute("fs-list-value");
+  }
+  if (!selectedDivision) {
+    descriptions.forEach((d) => d.classList.remove("is-active"));
+    if (emptyMsg) emptyMsg.style.display = "";
+  } else {
+    descriptions.forEach((d) => {
+      d.classList.toggle(
+        "is-active",
+        d.getAttribute("data-division") === selectedDivision,
+      );
+    });
+    if (emptyMsg) emptyMsg.style.display = "none";
+  }
+}
+
+// Permanent document-level delegation. Registered once and never torn down, so
+// position accordion + division filter work regardless of when Finsweet renders
+// the list, what barba does to the container, or the order core.js/main.js load.
+function initRecruitDelegation() {
+  if (window._recruitDelegationInit) return;
+  window._recruitDelegationInit = true;
+
+  document.addEventListener("click", function (e) {
+    if (!recruitIsActive()) return;
+
+    const trigger = e.target.closest(".position-accordion-trigger");
+    if (trigger) {
       e.stopPropagation();
       const clickedItem = trigger.closest(".position-item");
       if (!clickedItem) return;
       const clickedIcon = trigger.querySelector(".position-icon-ver");
       const isCurrentlyOpen = clickedItem.classList.contains("is-open");
-
       const targetY = !isCurrentlyOpen
-        ? computeFinalTargetY(clickedItem)
+        ? recruitComputeFinalTargetY(clickedItem)
         : null;
-
-      document
-        .querySelectorAll(".position-item.is-open")
-        .forEach(function (openItem) {
-          const openIcon = openItem.querySelector(".position-icon-ver");
-          if (openIcon) openIcon.classList.remove("is-open");
-          openItem.classList.remove("is-open");
-        });
+      recruitCloseAllPositions();
       if (!isCurrentlyOpen) {
         clickedItem.classList.add("is-open");
         if (clickedIcon) clickedIcon.classList.add("is-open");
-        scrollToY(targetY);
+        recruitScrollToY(targetY);
       }
+      return;
+    }
+
+    if (e.target.closest('[fs-list-element="clear"]')) {
+      recruitCloseAllPositions();
+      recruitScrollToListTop();
+      setTimeout(updateRecruitDescriptions, 50);
+    }
+  });
+
+  document.addEventListener("change", function (e) {
+    if (!recruitIsActive()) return;
+    if (e.target.closest('input[name="division-filter"]')) {
+      recruitCloseAllPositions();
+      recruitScrollToListTop();
+    }
+    if (e.target.closest('[fs-list-element="filters"] input[type="radio"]')) {
+      setTimeout(updateRecruitDescriptions, 50);
+    }
+  });
+}
+
+function initRecruitStaffSwiper() {
+  const swiperEl = document.querySelector(".staff-voices-swiper");
+  if (!swiperEl || swiperEl.dataset.staffSwiperInit) return;
+  swiperEl.dataset.staffSwiperInit = "true";
+  cleanupRecruitSwiper();
+
+  const SLIDE_DURATION = 5000;
+  let isSwitching = false;
+  let activeThumbSvg = null;
+
+  const staffVoicesThumbs = new Swiper(".staff-voices-thumbs", {
+    slidesPerView: 4,
+    spaceBetween: 16,
+    freeMode: true,
+    watchSlidesProgress: true,
+    slideToClickedSlide: true,
+    observer: true,
+    observeParents: true,
+    observeSlideChildren: true,
+    breakpoints: {
+      0: { slidesPerView: "auto", spaceBetween: 12 },
+      992: { slidesPerView: 4, spaceBetween: 16 },
+    },
+  });
+
+  function setupAllPaths() {
+    document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
+      svg.style.clipPath = "inset(0 100% 0 0)";
     });
   }
-
-  // 2. Division filter — Close + scroll to list top
-  const FILTER_SCROLL_OFFSET = 100;
-  function scrollToPositionListTop() {
-    const listEl =
-      document.querySelector('[fs-list-element="list"]') ||
-      document.querySelector(".position-list") ||
-      document.querySelector(".position-item")?.parentElement;
-    if (!listEl) return;
-    const targetY =
-      listEl.getBoundingClientRect().top +
-      window.pageYOffset -
-      FILTER_SCROLL_OFFSET;
-    if (window.pageYOffset <= targetY) return;
-    if (window.lenis?.scrollTo) {
-      window.lenis.scrollTo(targetY, { duration: 0.8 });
-    } else if (window.gsap?.to) {
-      window.gsap.to(window, {
-        duration: 0.8,
-        scrollTo: { y: targetY, autoKill: false },
-        ease: "power2.inOut",
-      });
-    } else {
-      window.scrollTo({ top: targetY, behavior: "smooth" });
-    }
-  }
-
-  document
-    .querySelectorAll('input[name="division-filter"]')
-    .forEach(function (radio) {
-      if (radio.dataset.filterResetInit) return;
-      radio.dataset.filterResetInit = "true";
-      radio.addEventListener("change", function () {
-        document
-          .querySelectorAll(".position-item.is-open")
-          .forEach(function (item) {
-            const icon = item.querySelector(".position-icon-ver");
-            if (icon) icon.classList.remove("is-open");
-            item.classList.remove("is-open");
-          });
-        scrollToPositionListTop();
-      });
+  function hideAllLines() {
+    document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
+      svg.style.clipPath = "inset(0 100% 0 0)";
     });
-
-  const filterClearBtn = document.querySelector('[fs-list-element="clear"]');
-  if (filterClearBtn && !filterClearBtn.dataset.filterScrollInit) {
-    filterClearBtn.dataset.filterScrollInit = "true";
-    filterClearBtn.addEventListener("click", scrollToPositionListTop);
   }
-
-  // 3. Division description switcher
-  const descriptions = document.querySelectorAll(".division-desc");
-  const emptyMsg = document.querySelector(".description-empty");
-  if (descriptions.length) {
-    function update() {
-      const checkedRadio = document.querySelector(
-        '[fs-list-element="filters"] input[type="radio"]:checked',
-      );
-      let selectedDivision = null;
-      if (checkedRadio) {
-        const span = checkedRadio
-          .closest("label, .w-radio")
-          ?.querySelector("[fs-list-value]");
-        selectedDivision = span?.getAttribute("fs-list-value");
-      }
-      if (!selectedDivision) {
-        descriptions.forEach((d) => d.classList.remove("is-active"));
-        if (emptyMsg) emptyMsg.style.display = "";
-      } else {
-        descriptions.forEach((d) => {
-          d.classList.toggle(
-            "is-active",
-            d.getAttribute("data-division") === selectedDivision,
-          );
-        });
-        if (emptyMsg) emptyMsg.style.display = "none";
-      }
-    }
-    document
-      .querySelectorAll('[fs-list-element="filters"] input[type="radio"]')
-      .forEach((input) => {
-        if (input.dataset.descSwitcherInit) return;
-        input.dataset.descSwitcherInit = "true";
-        input.addEventListener("change", () => setTimeout(update, 50));
-      });
-    const clearBtn = document.querySelector('[fs-list-element="clear"]');
-    if (clearBtn && !clearBtn.dataset.descSwitcherInit) {
-      clearBtn.dataset.descSwitcherInit = "true";
-      clearBtn.addEventListener("click", () => setTimeout(update, 50));
-    }
-    update();
+  function refreshActiveThumbSvg() {
+    activeThumbSvg = document.querySelector(
+      ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
+    );
   }
-
-  // 4. Staff Voices Swiper
-  if (document.querySelector(".staff-voices-swiper")) {
-    cleanupRecruitSwiper();
-
-    const SLIDE_DURATION = 5000;
-    let isSwitching = false;
-    let activeThumbSvg = null;
-
-    const staffVoicesThumbs = new Swiper(".staff-voices-thumbs", {
-      slidesPerView: 4,
-      spaceBetween: 16,
-      freeMode: true,
-      watchSlidesProgress: true,
-      slideToClickedSlide: true,
-      observer: true,
-      observeParents: true,
-      observeSlideChildren: true,
-      breakpoints: {
-        0: { slidesPerView: "auto", spaceBetween: 12 },
-        992: { slidesPerView: 4, spaceBetween: 16 },
-      },
-    });
-
-    function setupAllPaths() {
-      document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
-        svg.style.clipPath = "inset(0 100% 0 0)";
-      });
-    }
-    function hideAllLines() {
-      document.querySelectorAll(".thumb-progress svg").forEach((svg) => {
-        svg.style.clipPath = "inset(0 100% 0 0)";
-      });
-    }
-    function refreshActiveThumbSvg() {
-      activeThumbSvg = document.querySelector(
-        ".staff-voices-thumbs .swiper-slide-thumb-active .thumb-progress svg",
-      );
-    }
-    function settleThumbProgress() {
+  function settleThumbProgress() {
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setupAllPaths();
-          refreshActiveThumbSvg();
-          staffVoicesThumbs.update();
-          if (window.staffVoicesMain) window.staffVoicesMain.update();
-        });
+        setupAllPaths();
+        refreshActiveThumbSvg();
+        staffVoicesThumbs.update();
+        if (window.staffVoicesMain) window.staffVoicesMain.update();
       });
-    }
-
-    let resizeTimer;
-    window._staffVoicesResize = () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(setupAllPaths, 200);
-    };
-    window.addEventListener("resize", window._staffVoicesResize);
-
-    const staffVoicesMain = new Swiper(".staff-voices-swiper", {
-      slidesPerView: 1,
-      effect: "fade",
-      fadeEffect: { crossFade: true },
-      speed: 1000,
-      allowTouchMove: false,
-      autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
-      thumbs: { swiper: staffVoicesThumbs },
-      observer: true,
-      observeParents: true,
-      observeSlideChildren: true,
-      on: {
-        init() {
-          setupAllPaths();
-        },
-        afterInit() {
-          settleThumbProgress();
-        },
-        imagesReady() {
-          settleThumbProgress();
-        },
-        autoplayTimeLeft(s, time, progress) {
-          if (isSwitching || !activeThumbSvg) return;
-          activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
-        },
-        slideChangeTransitionStart() {
-          isSwitching = true;
-        },
-        slideChangeTransitionEnd() {
-          hideAllLines();
-          isSwitching = false;
-          refreshActiveThumbSvg();
-          if (window.innerWidth < 992) {
-            staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
-          }
-        },
-      },
     });
-
-    window.staffVoicesMain = staffVoicesMain;
-    window.staffVoicesThumbs = staffVoicesThumbs;
-
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(settleThumbProgress);
-    }
-    window.addEventListener("load", settleThumbProgress, { once: true });
   }
+
+  let resizeTimer;
+  window._staffVoicesResize = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(setupAllPaths, 200);
+  };
+  window.addEventListener("resize", window._staffVoicesResize);
+
+  const staffVoicesMain = new Swiper(".staff-voices-swiper", {
+    slidesPerView: 1,
+    effect: "fade",
+    fadeEffect: { crossFade: true },
+    speed: 1000,
+    allowTouchMove: false,
+    autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
+    thumbs: { swiper: staffVoicesThumbs },
+    observer: true,
+    observeParents: true,
+    observeSlideChildren: true,
+    on: {
+      init() {
+        setupAllPaths();
+      },
+      afterInit() {
+        settleThumbProgress();
+      },
+      imagesReady() {
+        settleThumbProgress();
+      },
+      autoplayTimeLeft(s, time, progress) {
+        if (isSwitching || !activeThumbSvg) return;
+        activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
+      },
+      slideChangeTransitionStart() {
+        isSwitching = true;
+      },
+      slideChangeTransitionEnd() {
+        hideAllLines();
+        isSwitching = false;
+        refreshActiveThumbSvg();
+        if (window.innerWidth < 992) {
+          staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
+        }
+      },
+    },
+  });
+
+  window.staffVoicesMain = staffVoicesMain;
+  window.staffVoicesThumbs = staffVoicesThumbs;
+
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(settleThumbProgress);
+  }
+  window.addEventListener("load", settleThumbProgress, { once: true });
+}
+
+// Render-dependent state: safe to call repeatedly (each piece is idempotent).
+function applyRecruitRenderState() {
+  if (!recruitIsActive()) return;
+  setFinsweetFilterValues();
+  updateRecruitDescriptions();
+  initRecruitStaffSwiper();
+}
+
+function initRecruitPageFeatures() {
+  if (!recruitIsActive()) return;
+  initRecruitDelegation();
+  applyRecruitRenderState();
+  // Backstop: re-apply after Finsweet finishes rendering the CMS list, which
+  // can land after this synchronous pass (esp. on barba navigation).
+  [120, 400, 1000, 2000].forEach((ms) =>
+    setTimeout(applyRecruitRenderState, ms),
+  );
 }
 
 function cleanupRecruitSwiper() {
@@ -1393,6 +1391,14 @@ function initTabContentReveal() {
 // ============================================
 let _companyObserver = null;
 
+function companyIsActive() {
+  return (
+    document
+      .querySelector("[data-barba-namespace]")
+      ?.getAttribute("data-barba-namespace") === "company"
+  );
+}
+
 function cleanupCompanyPage() {
   if (_companyObserver) {
     _companyObserver.disconnect();
@@ -1400,20 +1406,22 @@ function cleanupCompanyPage() {
   }
 }
 
-function initCompanyPage() {
-  cleanupCompanyPage();
+function buildCompanyObserver() {
+  if (!companyIsActive()) return false;
 
   const sections = document.querySelectorAll(".each-division");
   const shapes = [
     ...document.querySelectorAll(".interaction-wrapper"),
   ].reverse();
-  if (!sections.length || !shapes.length) return;
+  if (!sections.length || !shapes.length) return false;
+
+  cleanupCompanyPage();
 
   _companyObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         const index = [...sections].indexOf(entry.target);
-        if (index === -1) return;
+        if (index === -1 || !shapes[index]) return;
         if (entry.isIntersecting) {
           shapes[index].classList.add("is-active");
           shapes.forEach((s, i) => {
@@ -1428,6 +1436,19 @@ function initCompanyPage() {
   );
 
   sections.forEach((s) => _companyObserver.observe(s));
+  return true;
+}
+
+function initCompanyPage() {
+  if (!companyIsActive()) return;
+  if (buildCompanyObserver()) return;
+  // Sections/shapes not in the DOM yet — retry until they render
+  // (covers async layout + barba navigation timing).
+  [120, 400, 1000, 2000].forEach((ms) =>
+    setTimeout(() => {
+      if (companyIsActive() && !_companyObserver) buildCompanyObserver();
+    }, ms),
+  );
 }
 
 // ============================================
@@ -1669,6 +1690,10 @@ Object.assign(window, {
   setFinsweetFilterValues,
   restartFinsweetList,
   initRecruitPageFeatures,
+  initRecruitDelegation,
+  applyRecruitRenderState,
+  updateRecruitDescriptions,
+  initRecruitStaffSwiper,
   cleanupRecruitSwiper,
   initInterviewTemplate,
   cleanupInterviewTemplate,
@@ -1683,6 +1708,7 @@ Object.assign(window, {
   initTabContentReveal,
   prepTabContentReveal,
   initCompanyPage,
+  buildCompanyObserver,
   cleanupCompanyPage,
   initLocalizationSwitcher,
   cleanupLocalizationState,
