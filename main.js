@@ -1314,6 +1314,15 @@ function initTabsFallback() {
 // ============================================
 // Tab Content Reveal
 // ============================================
+function prepTabContentReveal(root) {
+  if (!window.gsap) return;
+  const scope = root || document;
+  scope.querySelectorAll(".w-tabs").forEach(function (widget) {
+    const pane = widget.querySelector(".w-tab-pane.w--tab-active");
+    if (pane) window.gsap.set(pane, { autoAlpha: 0, y: "2rem" });
+  });
+}
+
 function playTabContentReveal(pane) {
   if (!pane || !window.gsap) return;
   window.gsap.fromTo(
@@ -1568,6 +1577,7 @@ Object.assign(window, {
   initTabHeading,
   initTabsFallback,
   initTabContentReveal,
+  prepTabContentReveal,
   initCompanyPage,
   cleanupCompanyPage,
   initLocalizationSwitcher,
