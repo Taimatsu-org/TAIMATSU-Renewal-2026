@@ -922,9 +922,7 @@
       if (ns2 === 'home' && typeof initBestVentureButton === 'function') initBestVentureButton();
     }, 100);
   }
-  // Barba hooks — guarded so a missing barba / barbaPrefetch CDN can't throw
-  // here and stop the DOMContentLoaded init (below) from ever registering.
-  if (typeof barba !== 'undefined') {
+  // Barba hooks
   barba.hooks.before(() => closeMobileMenu());
   barba.hooks.afterLeave((data) => {
     if (typeof window.cleanupPageFromMain === 'function') {
@@ -943,7 +941,7 @@
     resetWebflow(data);
   });
   // Barba init
-  if (typeof barbaPrefetch !== 'undefined') barba.use(barbaPrefetch);
+  barba.use(barbaPrefetch);
   barba.init({
     preventRunning: true,
     timeout: 10000,
@@ -1011,7 +1009,6 @@
       },
     ],
   });
-  }
   // Init
   document.addEventListener('DOMContentLoaded', async () => {
     const ns = document.querySelector('[data-barba-namespace]')?.getAttribute('data-barba-namespace');
@@ -1020,15 +1017,23 @@
     initWebflowURLCleanup();
     updateNavbarColors();
     if (typeof initFlashHover === 'function') initFlashHover();
-    if (isHome && !sessionStorage.getItem('barba-navigated') && typeof initSiteLoader === 'function') {
-      await initSiteLoader();
-    } else {
-      // No site loader to run (or not home) — clear the loading state so it
-      // can never keep the page from scrolling.
+    if (isHome && !sessionStorage.getItem('barba-navigated')) await initSiteLoader();
+    else {
       const loader = document.getElementById('site-loader');
       if (loader) loader.style.display = 'none';
       document.documentElement.classList.remove('is-loading');
     }
+    // lenis measured the page height while the loader was still up / before
+    // images finished, so its scroll limit is too short and the page won't
+    // scroll until a manual resize. Re-measure once content has settled.
+    const refreshScroll = () => {
+      if (window.lenis?.resize) window.lenis.resize();
+      if (window.ScrollTrigger) ScrollTrigger.refresh();
+    };
+    refreshScroll();
+    window.addEventListener('load', refreshScroll, { once: true });
+    if (document.fonts?.ready) document.fonts.ready.then(refreshScroll);
+    [300, 800, 1500].forEach((ms) => setTimeout(refreshScroll, ms));
     setTimeout(() => {
       if (ns === 'brands' && typeof initBrandsHeroReveal === 'function') initBrandsHeroReveal();
       initFlashReveal();
