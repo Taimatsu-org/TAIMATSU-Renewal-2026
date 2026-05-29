@@ -456,6 +456,8 @@ function initBestVentureButton() {
   if (!btn.length || !trigger) return;
 
   btn.forEach((button) => {
+    if (button.dataset.bestVentureInit) return;
+    button.dataset.bestVentureInit = "true";
     button.style.display = "none";
     gsap.set(button, { opacity: 0 });
 
@@ -491,8 +493,11 @@ function initBestVentureButton() {
 function initBrandsHeroReveal() {
   if (typeof gsap === "undefined") return;
   gsap.registerPlugin(ScrollTrigger);
+  const heroEl = document.querySelector(".preview-hero");
+  if (!heroEl || heroEl.dataset.heroRevealInit) return;
   const imgs = gsap.utils.toArray(".preview-hero .mask-img");
   if (!imgs.length) return;
+  heroEl.dataset.heroRevealInit = "true";
   ScrollTrigger.create({
     trigger: ".preview-hero",
     start: "top top",
@@ -1153,28 +1158,80 @@ function resetWebflow(data) {
   if (typeof window.initPageFromMain === "function") {
     window.initPageFromMain(ns);
   }
-  setTimeout(() => {
-    if (window.ScrollTrigger) ScrollTrigger.refresh(true);
-    const ns2 = document
-      .querySelector("[data-barba-namespace]")
-      ?.getAttribute("data-barba-namespace");
-    if (ns2 === "brands" && typeof initBrandsHeroReveal === "function")
-      initBrandsHeroReveal();
-    if (typeof initFlashReveal === "function") initFlashReveal();
-    if (typeof initCardReveal === "function") initCardReveal();
-    if (typeof initColorReveal === "function") initColorReveal();
-    if (typeof initMaskWipeReveal === "function") initMaskWipeReveal();
-    if (
-      (ns2 === "brands" ||
-        ns2 === "home" ||
-        ns2 === "recruit" ||
-        ns2 === "interview-cms") &&
-      typeof initBrandsButtonAnimation === "function"
-    )
-      initBrandsButtonAnimation();
-    if (ns2 === "home" && typeof initBestVentureButton === "function")
-      initBestVentureButton();
-  }, 100);
+  settleRevealInits(ns);
+}
+
+// Reveal inits — all idempotent, so they can be re-run safely across settle
+// passes. Late-rendered (Finsweet/CMS) or initially-hidden elements get picked
+// up on a later pass instead of being missed on the first one.
+function runRevealInits(ns) {
+  if (ns === "brands" && typeof initBrandsHeroReveal === "function")
+    initBrandsHeroReveal();
+  if (typeof initFlashReveal === "function") initFlashReveal();
+  if (typeof initCardReveal === "function") initCardReveal();
+  if (typeof initColorReveal === "function") initColorReveal();
+  if (typeof initMaskWipeReveal === "function") initMaskWipeReveal();
+  if (
+    (ns === "brands" ||
+      ns === "home" ||
+      ns === "recruit" ||
+      ns === "interview-cms") &&
+    typeof initBrandsButtonAnimation === "function"
+  )
+    initBrandsButtonAnimation();
+  if (ns === "home" && typeof initBestVentureButton === "function")
+    initBestVentureButton();
+}
+
+// Root fix for "didn't initialize on the first switch": layout on a cold
+// (uncached) visit isn't final at a fixed 100ms — images/fonts land later and
+// shift positions, so once:true triggers computed early fire at the wrong spot
+// or never. So we re-run reveals + ScrollTrigger.refresh across several settle
+// points, and again whenever images finish loading or fonts become ready. A
+// generation token cancels stale passes once a newer navigation starts.
+let _revealSettleGen = 0;
+let _revealSettleTimers = [];
+let _revealSettleImgCleanup = null;
+function settleRevealInits(ns) {
+  const gen = ++_revealSettleGen;
+  _revealSettleTimers.forEach((id) => clearTimeout(id));
+  _revealSettleTimers = [];
+  if (_revealSettleImgCleanup) {
+    _revealSettleImgCleanup();
+    _revealSettleImgCleanup = null;
+  }
+
+  const pass = () => {
+    if (gen !== _revealSettleGen) return;
+    runRevealInits(ns);
+    if (window.lenis?.resize) window.lenis.resize();
+    if (window.ScrollTrigger) ScrollTrigger.refresh();
+  };
+
+  _revealSettleTimers = [0, 150, 400, 900, 1800].map((ms) =>
+    setTimeout(pass, ms),
+  );
+
+  if (document.fonts?.ready) document.fonts.ready.then(pass);
+
+  const container = document.querySelector('[data-barba="container"]');
+  if (container) {
+    const pending = [];
+    const onImg = () => pass();
+    container.querySelectorAll("img").forEach((img) => {
+      if (!img.complete) {
+        img.addEventListener("load", onImg, { once: true });
+        img.addEventListener("error", onImg, { once: true });
+        pending.push(img);
+      }
+    });
+    _revealSettleImgCleanup = () => {
+      pending.forEach((img) => {
+        img.removeEventListener("load", onImg);
+        img.removeEventListener("error", onImg);
+      });
+    };
+  }
 }
 
 // Barba hooks
@@ -1210,14 +1267,30 @@ barba.init({
   preventRunning: true,
   timeout: 10000,
   prevent: ({ el }) => {
-    return (
-      el.hasAttribute("fs-cmsload-element") ||
-      el.closest("[fs-cmsload-element]") !== null ||
-      el.hasAttribute("fs-list-element") ||
-      el.closest("[fs-list-element]") !== null ||
+    // Webflow native pagination
+    if (
       el.classList.contains("w-pagination-next") ||
       el.classList.contains("w-pagination-previous") ||
       el.closest(".w-pagination-wrapper") !== null
+    ) {
+      return true;
+    }
+    // Only block Finsweet's own controls (pagination / load-more / filters), so
+    // they keep running in place. CMS item links to detail pages live inside the
+    // list too but are NOT controls — letting them through means navigating into
+    // a blog/interview detail page transitions via barba (and gets the fade).
+    return (
+      el.closest(
+        '[fs-list-element="pagination-next"],' +
+          '[fs-list-element="pagination-previous"],' +
+          '[fs-list-element="load"],' +
+          '[fs-list-element="load-more"],' +
+          '[fs-list-element="filters"],' +
+          '[fs-list-element="clear"],' +
+          '[fs-cmsload-element="next"],' +
+          '[fs-cmsload-element="prev"],' +
+          '[fs-cmsload-element="load-more"]',
+      ) !== null
     );
   },
   transitions: [
@@ -1327,21 +1400,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.documentElement.classList.remove("is-loading");
   }
 
+  settleRevealInits(ns);
+
   setTimeout(() => {
-    if (ns === "brands" && typeof initBrandsHeroReveal === "function")
-      initBrandsHeroReveal();
-    initFlashReveal();
-    initCardReveal();
-    initColorReveal();
-    if (typeof initMaskWipeReveal === "function") initMaskWipeReveal();
-    if (
-      (ns === "brands" ||
-        ns === "home" ||
-        ns === "recruit" ||
-        ns === "interview-cms") &&
-      typeof initBrandsButtonAnimation === "function"
-    )
-      initBrandsButtonAnimation();
     if ((ns === "home" || ns === "brands") && typeof initBrandsVideoHover === "function") {
       initBrandsVideoHover();
 
@@ -1362,8 +1423,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
     if (ns === "home" && typeof initSplitLines === "function") initSplitLines();
-    if (ns === "home" && typeof initBestVentureButton === "function")
-      initBestVentureButton();
     if (ns === "recruit") {
       if (typeof initRecruitSVG === "function") initRecruitSVG();
       if (typeof initRecruitSwiper === "function") initRecruitSwiper();
