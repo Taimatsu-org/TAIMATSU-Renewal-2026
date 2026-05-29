@@ -21,6 +21,19 @@
       if (window.ScrollTrigger) {
         window.lenis.on('scroll', ScrollTrigger.update);
       }
+      // Re-measure whenever the page height changes (accordion expand, Finsweet
+      // render/filter, late images, pin-spacing). lenis's built-in observer
+      // watches <html>, which can miss scrollHeight growth — so its scroll
+      // limit gets stuck too short and you can't scroll to the bottom.
+      if (typeof ResizeObserver !== 'undefined') {
+        let resizeT;
+        new ResizeObserver(() => {
+          clearTimeout(resizeT);
+          resizeT = setTimeout(() => {
+            if (window.lenis) window.lenis.resize();
+          }, 100);
+        }).observe(document.body);
+      }
     }
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', startLenis);
