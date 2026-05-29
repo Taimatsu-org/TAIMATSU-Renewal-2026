@@ -1624,6 +1624,33 @@ function initInterviewCardArrow() {
   );
 }
 
+function initReadBlogsButton() {
+  initHoverPlayOnce(
+    ".staff-voice-read-blog",
+    function (card, done) {
+      const arrows = card.querySelectorAll(".arrow-wrapper .interview-arrow");
+      if (!arrows.length) {
+        done();
+        return;
+      }
+      window.gsap.fromTo(
+        arrows,
+        { xPercent: -100 },
+        {
+          xPercent: 0,
+          duration: 0.5,
+          ease: "power2.inOut",
+          onComplete: function () {
+            window.gsap.set(arrows, { xPercent: -100 });
+            done();
+          },
+        },
+      );
+    },
+    "readBlogsButtonInit",
+  );
+}
+
 // ============================================
 // Finsweet List Restart
 // ============================================
