@@ -1628,7 +1628,9 @@ function initReadBlogsButton() {
   initHoverPlayOnce(
     ".staff-voice-read-blog",
     function (card, done) {
-      const arrows = card.querySelectorAll(".arrow-wrapper .interview-arrow");
+      const arrows = card.querySelectorAll(
+        ".orange-button-wrapper .arrow-wrapper .interview-arrow",
+      );
       if (!arrows.length) {
         done();
         return;
