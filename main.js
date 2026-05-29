@@ -10,7 +10,6 @@ window.FinsweetAttributes.push([
     // time that can land BEFORE these items exist, so (re)run the page features
     // that depend on the rendered content once it's actually in the DOM.
     if (ns === "recruit") initRecruitPageFeatures();
-    else if (ns === "company") initCompanyPage();
     else if (ns === "interview-cms") initInterviewTemplate();
   },
 ]);
@@ -1429,7 +1428,11 @@ function initCompanyPage() {
         }
       });
     },
-    { threshold: 0.5 },
+    // Detection zone collapsed to a 1px line at the vertical center of the
+    // viewport. A section is "active" when it crosses that center line —
+    // works for any section height (threshold:0.5 never fired for sections
+    // taller than the viewport, which is why the effect didn't run).
+    { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
   );
 
   sections.forEach((s) => _companyObserver.observe(s));
