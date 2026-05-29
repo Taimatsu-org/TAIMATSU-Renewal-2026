@@ -334,6 +334,21 @@ function cleanupRecruitSwiper() {
   }
 }
 
+// Build the interview links on the staff-voices swiper from each slide's slug
+// (locale-aware). Idempotent — just sets href on existing anchors, safe to
+// re-run and a no-op on pages without the swiper.
+function initStaffVoicesSwiperLinks() {
+  document
+    .querySelectorAll(".staff-voices-swiper a[data-slug]")
+    .forEach((a) => {
+      const slug = a.getAttribute("data-slug");
+      if (!slug || !slug.trim()) return;
+      const lang = document.documentElement.lang;
+      const prefix = lang.startsWith("en") ? "/en" : "";
+      a.href = `${prefix}/interviews/${slug}`;
+    });
+}
+
 window._tplCleanup = window._tplCleanup || {};
 
 function cleanupInterviewTemplate() {
@@ -1706,6 +1721,7 @@ Object.assign(window, {
   initHoverPlayOnce,
   initInterviewCardArrow,
   initReadBlogsButton,
+  initStaffVoicesSwiperLinks,
 });
 
 window.initPageFromMain = function (ns) {
@@ -1727,6 +1743,7 @@ window.initPageFromMain = function (ns) {
   initShinyBtn();
   initInterviewCardArrow();
   initReadBlogsButton();
+  initStaffVoicesSwiperLinks();
 };
 
 window.cleanupPageFromMain = function (prevNs) {
