@@ -2,6 +2,30 @@
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
 if (typeof SplitText !== "undefined") gsap.registerPlugin(SplitText);
 
+// ============================================================
+// Page module registry — the single way to wire up a feature.
+//
+//   registerPageModule({
+//     name: "myFeature",
+//     namespaces: "*" | ["home", "recruit"],  // where it runs
+//     once: false,        // re-run across settle passes (default) vs once/enter
+//     init(ns, ctx) {},   // ctx = { ns, isInitial }
+//     cleanup(ns) {},     // runs when leaving a matching page
+//   });
+//
+// One registration = runs on first load AND every barba navigation, re-run
+// across settle passes so late/async (Finsweet/CMS, images, fonts) content is
+// caught, and torn down on leave. Default modules MUST be idempotent (guard
+// with a data-* flag or element check); use once:true for heavy setups that
+// manage their own timing (Swiper, charts, line animation, Finsweet restart).
+// ============================================================
+window.__pageModules = window.__pageModules || [];
+window.registerPageModule =
+  window.registerPageModule ||
+  function (mod) {
+    (window.__pageModules = window.__pageModules || []).push(mod);
+  };
+
 (function () {
   function startLenis() {
     if (typeof Lenis === "undefined") {
@@ -23,6 +47,12 @@ if (typeof SplitText !== "undefined") gsap.registerPlugin(SplitText);
     gsap.ticker.lagSmoothing(0);
     if (window.ScrollTrigger) {
       window.lenis.on("scroll", ScrollTrigger.update);
+      // Pins add their pin-spacing height during ScrollTrigger.refresh(). Lenis
+      // must re-read the document height AFTER that, or its scroll limit stays
+      // stale and short — you get stuck partway, unable to scroll to the bottom.
+      if (typeof ScrollTrigger.addEventListener === "function") {
+        ScrollTrigger.addEventListener("refresh", () => window.lenis?.resize());
+      }
     }
   }
   if (document.readyState === "loading") {
@@ -524,6 +554,9 @@ function initBrandsHeroReveal() {
 // CountUp
 function initCountUpAnimations() {
   if (typeof countUp === "undefined" || !document.getElementById("number1")) return;
+  const guardEl = document.getElementById("number1");
+  if (guardEl.dataset.countUpInit) return;
+  guardEl.dataset.countUpInit = "true";
 
   const needsLocale = [20, 21];
 
@@ -729,6 +762,8 @@ function initRecruitSVG() {
     t2 = document.querySelector(".recruit-trail-2"),
     t2h = document.querySelector(".recruit-trail-2-helper");
   if (!m || !h) return;
+  if (m.dataset.recruitSvgInit) return;
+  m.dataset.recruitSvgInit = "true";
   cleanupRecruitSVG();
   const paths = [m, h, t1, t1h, t2, t2h].filter(Boolean),
     trails = [t1, t1h, t2, t2h].filter(Boolean);
@@ -788,6 +823,8 @@ function initPieChart() {
   const wrapper = document.querySelector(".chart-wrapper"),
     canvas = document.getElementById("pieChart");
   if (!wrapper || !canvas || typeof Chart === "undefined") return;
+  if (canvas.dataset.pieInit) return;
+  canvas.dataset.pieInit = "true";
   cleanupPieChart();
   if (typeof ChartDeferred !== "undefined" && !Chart.registry.plugins.get("deferred"))
     Chart.register(ChartDeferred);
@@ -916,7 +953,9 @@ function initRecruitSwiper() {
     .querySelector("[data-barba-namespace]")
     ?.getAttribute("data-barba-namespace");
   if (ns !== "recruit") return;
-  if (!document.querySelector(".swiper")) return;
+  const recruitSwiperEl = document.querySelector(".swiper");
+  if (!recruitSwiperEl || recruitSwiperEl.dataset.recruitSwiperInit) return;
+  recruitSwiperEl.dataset.recruitSwiperInit = "true";
   const SPEED = 600;
   let isAnimating = false;
   const swiper2Instances = [];
@@ -1104,61 +1143,7 @@ function resetWebflow(data) {
   const ns = document
     .querySelector("[data-barba-namespace]")
     ?.getAttribute("data-barba-namespace");
-  if (ns === "home") {
-    if (typeof initSplitLines === "function") initSplitLines();
-    if (typeof initBrandsVideoHover === "function") initBrandsVideoHover();
-
-    setTimeout(() => {
-      if (window.UnicornStudio) {
-        if (window.UnicornStudio.destroy) window.UnicornStudio.destroy();
-        const c = document.querySelector("[data-us-project]");
-        if (c) gsap.set(c, { opacity: 0 });
-
-        const initUS = () => {
-          if (window.UnicornStudio.init) {
-            UnicornStudio.init();
-            initUnicornFadeIn();
-          }
-        };
-
-        if (window.UnicornStudio.isInitialized) initUS();
-        else {
-          const checkUS = setInterval(() => {
-            if (window.UnicornStudio.isInitialized) {
-              clearInterval(checkUS);
-              initUS();
-            }
-          }, 100);
-          setTimeout(() => clearInterval(checkUS), 5000);
-        }
-      }
-    }, 200);
-
-    setTimeout(() => {
-      if (window.FluidSimulation?.destroy) window.FluidSimulation.destroy();
-      window._fluidSimAttempts = 0;
-      if (typeof initFluidSimulation === "function") {
-        initFluidSimulation();
-      }
-    }, 200);
-  } else if (ns === "company") {
-    if (typeof initCountUpAnimations === "function") initCountUpAnimations();
-    if (typeof initCompanySwiper === "function") initCompanySwiper();
-    if (typeof initDivisionImageSticky === "function") initDivisionImageSticky();
-  } else if (ns === "brands") {
-    if (typeof initBrandsVideoHover === "function") initBrandsVideoHover();
-  } else if (ns === "recruit") {
-    if (typeof initSplitLinesRecruit === "function") initSplitLinesRecruit();
-    if (typeof initRecruitSVG === "function") initRecruitSVG();
-    if (typeof initRecruitSwiper === "function") initRecruitSwiper();
-  } else if (ns === "numbers") {
-    if (typeof initCountUpAnimations === "function") initCountUpAnimations();
-    if (typeof initPieChart === "function") initPieChart();
-  }
-  if (typeof window.initPageFromMain === "function") {
-    window.initPageFromMain(ns);
-  }
-  settleRevealInits(ns);
+  enterPage(ns, false);
 }
 
 // Reveal inits — all idempotent, so they can be re-run safely across settle
@@ -1183,34 +1168,71 @@ function runRevealInits(ns) {
     initBestVentureButton();
 }
 
-// Root fix for "didn't initialize on the first switch": layout on a cold
-// (uncached) visit isn't final at a fixed 100ms — images/fonts land later and
-// shift positions, so once:true triggers computed early fire at the wrong spot
-// or never. So we re-run reveals + ScrollTrigger.refresh across several settle
-// points, and again whenever images finish loading or fonts become ready. A
-// generation token cancels stale passes once a newer navigation starts.
-let _revealSettleGen = 0;
-let _revealSettleTimers = [];
-let _revealSettleImgCleanup = null;
-function settleRevealInits(ns) {
-  const gen = ++_revealSettleGen;
-  _revealSettleTimers.forEach((id) => clearTimeout(id));
-  _revealSettleTimers = [];
-  if (_revealSettleImgCleanup) {
-    _revealSettleImgCleanup();
-    _revealSettleImgCleanup = null;
+// ============================================================
+// Page lifecycle — the single entry point for both first load and barba.
+// enterPage() re-runs the registered modules across settle points (timers +
+// image load + fonts.ready) and refreshes ScrollTrigger + lenis each pass, so
+// cold-load layout shifts and late/async content are handled uniformly.
+// leavePage() cancels pending passes and runs matching modules' cleanup.
+// A generation token cancels stale passes when a new navigation starts.
+// ============================================================
+function _moduleAppliesTo(mod, ns) {
+  const list = mod.namespaces;
+  if (!list || list === "*") return true;
+  return Array.isArray(list) ? list.includes(ns) : list === ns;
+}
+
+let _pageGen = 0;
+let _pageTimers = [];
+let _pageImgCleanup = null;
+let _pageOnceDone = new Set();
+
+function runPageModules(ns, ctx) {
+  window.__pageModules.forEach((mod) => {
+    if (!_moduleAppliesTo(mod, ns)) return;
+    if (mod.once && _pageOnceDone.has(mod)) return;
+    try {
+      if (typeof mod.init === "function") mod.init(ns, ctx);
+      if (mod.once) _pageOnceDone.add(mod);
+    } catch (e) {
+      console.error("[pageModule] init failed:", mod && mod.name, e);
+    }
+  });
+}
+
+function runPageCleanup(ns) {
+  window.__pageModules.forEach((mod) => {
+    if (!_moduleAppliesTo(mod, ns)) return;
+    try {
+      if (typeof mod.cleanup === "function") mod.cleanup(ns);
+    } catch (e) {
+      console.error("[pageModule] cleanup failed:", mod && mod.name, e);
+    }
+  });
+}
+
+function enterPage(ns, isInitial) {
+  const gen = ++_pageGen;
+  _pageTimers.forEach((id) => clearTimeout(id));
+  _pageTimers = [];
+  if (_pageImgCleanup) {
+    _pageImgCleanup();
+    _pageImgCleanup = null;
   }
+  _pageOnceDone = new Set();
+  const ctx = { ns, isInitial: !!isInitial };
 
   const pass = () => {
-    if (gen !== _revealSettleGen) return;
-    runRevealInits(ns);
-    if (window.lenis?.resize) window.lenis.resize();
+    if (gen !== _pageGen) return;
+    runPageModules(ns, ctx);
+    // Refresh first so pin-spacing height is applied, THEN resize lenis so its
+    // scroll limit covers the full (post-pin) document height.
     if (window.ScrollTrigger) ScrollTrigger.refresh();
+    if (window.lenis?.resize) window.lenis.resize();
   };
 
-  _revealSettleTimers = [0, 150, 400, 900, 1800].map((ms) =>
-    setTimeout(pass, ms),
-  );
+  pass();
+  _pageTimers = [100, 400, 900, 1800].map((ms) => setTimeout(pass, ms));
 
   if (document.fonts?.ready) document.fonts.ready.then(pass);
 
@@ -1225,7 +1247,7 @@ function settleRevealInits(ns) {
         pending.push(img);
       }
     });
-    _revealSettleImgCleanup = () => {
+    _pageImgCleanup = () => {
       pending.forEach((img) => {
         img.removeEventListener("load", onImg);
         img.removeEventListener("error", onImg);
@@ -1234,13 +1256,152 @@ function settleRevealInits(ns) {
   }
 }
 
+function leavePage(ns) {
+  _pageGen++; // cancel any pending settle passes from the page we're leaving
+  runPageCleanup(ns);
+}
+
+// ============================================================
+// Core page modules (features defined in this file)
+// ============================================================
+registerPageModule({
+  name: "navbarColors",
+  namespaces: "*",
+  init: (ns) => updateNavbarColors(ns),
+});
+registerPageModule({
+  name: "reveals",
+  namespaces: "*",
+  init: (ns) => runRevealInits(ns),
+});
+registerPageModule({
+  name: "splitLines",
+  namespaces: ["home"],
+  once: true,
+  init: () => {
+    if (typeof initSplitLines === "function") initSplitLines();
+  },
+  cleanup: () => {
+    if (typeof cleanupSplitLines === "function") cleanupSplitLines();
+  },
+});
+registerPageModule({
+  name: "brandsVideoHover",
+  namespaces: ["home", "brands"],
+  init: () => {
+    if (typeof initBrandsVideoHover === "function") initBrandsVideoHover();
+  },
+});
+registerPageModule({
+  name: "unicornStudio",
+  namespaces: ["home", "brands"],
+  once: true,
+  init: (ns, ctx) => {
+    if (!window.UnicornStudio) return;
+    const fadeWhenReady = (reinit) => {
+      const run = () => {
+        if (reinit && window.UnicornStudio.init) window.UnicornStudio.init();
+        initUnicornFadeIn();
+      };
+      if (window.UnicornStudio.isInitialized) run();
+      else {
+        const t = setInterval(() => {
+          if (window.UnicornStudio.isInitialized) {
+            clearInterval(t);
+            run();
+          }
+        }, 100);
+        setTimeout(() => clearInterval(t), 5000);
+      }
+    };
+    if (ctx.isInitial) {
+      fadeWhenReady(false);
+    } else {
+      // barba: UnicornStudio doesn't survive the DOM swap — destroy + re-init.
+      setTimeout(() => {
+        if (window.UnicornStudio.destroy) window.UnicornStudio.destroy();
+        const c = document.querySelector("[data-us-project]");
+        if (c) gsap.set(c, { opacity: 0 });
+        fadeWhenReady(true);
+      }, 200);
+    }
+  },
+});
+registerPageModule({
+  name: "fluidSim",
+  namespaces: ["home"],
+  once: true,
+  init: (ns, ctx) => {
+    if (ctx.isInitial) return; // first load: self-inits elsewhere
+    setTimeout(() => {
+      if (window.FluidSimulation?.destroy) window.FluidSimulation.destroy();
+      window._fluidSimAttempts = 0;
+      if (typeof initFluidSimulation === "function") initFluidSimulation();
+    }, 200);
+  },
+});
+registerPageModule({
+  name: "splitLinesRecruit",
+  namespaces: ["recruit"],
+  once: true,
+  init: () => {
+    if (typeof initSplitLinesRecruit === "function") initSplitLinesRecruit();
+  },
+});
+registerPageModule({
+  name: "recruitSVG",
+  namespaces: ["recruit"],
+  init: () => {
+    if (typeof initRecruitSVG === "function") initRecruitSVG();
+  },
+  cleanup: () => {
+    if (typeof cleanupRecruitSVG === "function") cleanupRecruitSVG();
+  },
+});
+registerPageModule({
+  name: "recruitSwiper",
+  namespaces: ["recruit"],
+  init: () => {
+    if (typeof initRecruitSwiper === "function") initRecruitSwiper();
+  },
+});
+registerPageModule({
+  name: "countUp",
+  namespaces: ["numbers", "company"],
+  init: () => {
+    if (typeof initCountUpAnimations === "function") initCountUpAnimations();
+  },
+});
+registerPageModule({
+  name: "pieChart",
+  namespaces: ["numbers"],
+  init: () => {
+    if (typeof initPieChart === "function") initPieChart();
+  },
+  cleanup: () => {
+    if (typeof cleanupPieChart === "function") cleanupPieChart();
+  },
+});
+registerPageModule({
+  name: "companySwiper",
+  namespaces: ["company"],
+  init: () => {
+    if (typeof initCompanySwiper === "function") initCompanySwiper();
+  },
+});
+registerPageModule({
+  name: "divisionImageSticky",
+  namespaces: ["company"],
+  init: () => {
+    if (typeof initDivisionImageSticky === "function") initDivisionImageSticky();
+  },
+});
+
 // Barba hooks
 barba.hooks.before(() => closeMobileMenu());
 
 barba.hooks.afterLeave((data) => {
-  if (typeof window.cleanupPageFromMain === "function") {
-    window.cleanupPageFromMain(data.current?.namespace);
-  }
+  leavePage(data.current?.namespace);
 });
 barba.hooks.enter((data) => {
   gsap.set(data.next.container, {
@@ -1400,49 +1561,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.documentElement.classList.remove("is-loading");
   }
 
-  settleRevealInits(ns);
-
-  setTimeout(() => {
-    if ((ns === "home" || ns === "brands") && typeof initBrandsVideoHover === "function") {
-      initBrandsVideoHover();
-
-      const initUS = () => {
-        if (window.UnicornStudio?.init) {
-          initUnicornFadeIn();
-        }
-      };
-      if (window.UnicornStudio?.isInitialized) initUS();
-      else {
-        const checkUS = setInterval(() => {
-          if (window.UnicornStudio?.isInitialized) {
-            clearInterval(checkUS);
-            initUS();
-          }
-        }, 100);
-        setTimeout(() => clearInterval(checkUS), 5000);
-      }
-    }
-    if (ns === "home" && typeof initSplitLines === "function") initSplitLines();
-    if (ns === "recruit") {
-      if (typeof initRecruitSVG === "function") initRecruitSVG();
-      if (typeof initRecruitSwiper === "function") initRecruitSwiper();
-    }
-    if (ns === "numbers") {
-      if (typeof initCountUpAnimations === "function") initCountUpAnimations();
-      if (typeof initPieChart === "function") initPieChart();
-    }
-    if (ns === "company") {
-      if (typeof initDivisionImageSticky === "function") initDivisionImageSticky();
-    }
-    if (typeof window.initPageFromMain === "function") {
-      window.initPageFromMain(ns);
-    }
-  }, 100);
+  enterPage(ns, true);
 });
 
 // Company swiper
 function initCompanySwiper() {
-  if (!document.querySelector(".company-swiper")) return;
+  const companyEl = document.querySelector(".company-swiper");
+  if (!companyEl || companyEl.dataset.companySwiperInit) return;
+  companyEl.dataset.companySwiperInit = "true";
 
   window.companySwiper?.destroy(true, true);
 

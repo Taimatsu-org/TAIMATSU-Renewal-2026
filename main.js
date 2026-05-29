@@ -1,3 +1,12 @@
+// Defensive: registerPageModule is defined in core.js; tolerate either load
+// order so module registrations below never throw.
+window.__pageModules = window.__pageModules || [];
+window.registerPageModule =
+  window.registerPageModule ||
+  function (mod) {
+    (window.__pageModules = window.__pageModules || []).push(mod);
+  };
+
 window.FinsweetAttributes ||= [];
 window.FinsweetAttributes.push([
   "list",
@@ -8,7 +17,7 @@ window.FinsweetAttributes.push([
 ]);
 
 // Register the permanent recruit delegation as soon as main.js loads, so it
-// never depends on initPageFromMain (and therefore on core.js timing) running.
+// never depends on the page lifecycle (and therefore on load timing) running.
 if (typeof initRecruitDelegation === "function") initRecruitDelegation();
 
 function setFinsweetFilterValues() {
@@ -291,11 +300,6 @@ function initRecruitPageFeatures() {
   if (!recruitIsActive()) return;
   initRecruitDelegation();
   applyRecruitRenderState();
-  // Backstop: re-apply after Finsweet finishes rendering the CMS list, which
-  // can land after this synchronous pass (esp. on barba navigation).
-  [120, 400, 1000, 2000].forEach((ms) =>
-    setTimeout(applyRecruitRenderState, ms),
-  );
 }
 
 function cleanupRecruitSwiper() {
@@ -1408,6 +1412,7 @@ function cleanupCompanyPage() {
 
 function buildCompanyObserver() {
   if (!companyIsActive()) return false;
+  if (_companyObserver) return true;
 
   const sections = document.querySelectorAll(".each-division");
   const shapes = [
@@ -1440,15 +1445,7 @@ function buildCompanyObserver() {
 }
 
 function initCompanyPage() {
-  if (!companyIsActive()) return;
-  if (buildCompanyObserver()) return;
-  // Sections/shapes not in the DOM yet — retry until they render
-  // (covers async layout + barba navigation timing).
-  [120, 400, 1000, 2000].forEach((ms) =>
-    setTimeout(() => {
-      if (companyIsActive() && !_companyObserver) buildCompanyObserver();
-    }, ms),
-  );
+  buildCompanyObserver();
 }
 
 // ============================================
@@ -1720,32 +1717,65 @@ Object.assign(window, {
   initReadBlogsButton,
 });
 
-window.initPageFromMain = function (ns) {
-  if (ns === "recruit") initRecruitPageFeatures();
-  else if (ns === "interview-cms") initInterviewTemplate();
-  else if (ns === "company") initCompanyPage();
+// ============================================
+// Page module registrations
+// Each feature is wired up ONCE here; the lifecycle in core.js (enterPage /
+// leavePage) runs them on first load and every barba navigation, re-running
+// across settle passes and cleaning up on leave. To add a new feature, add one
+// registerPageModule({...}) call — nothing else to touch.
+//   - default modules re-run every settle pass → init MUST be idempotent
+//     (guard with a data-* flag / element check).
+//   - once:true → run once per page enter (heavy setups that self-manage timing).
+// ============================================
 
-  initLineAnimation();
-  initJoinedYearLabel();
-  initTabFromURL();
-  initTabFlashReveal();
-  initTabsFallback();
-  initTabHeading();
-  initTabContentReveal();
-  applyTabHeadingState();
-  initLocalizationSwitcher();
-  restoreLocalizationCurrent();
-  initBorderGlow();
-  initShinyBtn();
-  initInterviewCardArrow();
-  initReadBlogsButton();
-  restartFinsweetList();
-};
+// Page-specific
+registerPageModule({
+  name: "recruitFeatures",
+  namespaces: ["recruit"],
+  init: initRecruitPageFeatures,
+  cleanup: cleanupRecruitSwiper,
+});
+registerPageModule({
+  name: "interviewTemplate",
+  namespaces: ["interview-cms"],
+  once: true,
+  init: initInterviewTemplate,
+  cleanup: cleanupInterviewTemplate,
+});
+registerPageModule({
+  name: "companyDivisionSVG",
+  namespaces: ["company"],
+  init: initCompanyPage,
+  cleanup: cleanupCompanyPage,
+});
 
-window.cleanupPageFromMain = function (prevNs) {
-  cleanupLineAnimation();
-  cleanupLocalizationState();
-  if (prevNs === "recruit") cleanupRecruitSwiper();
-  else if (prevNs === "interview-cms") cleanupInterviewTemplate();
-  else if (prevNs === "company") cleanupCompanyPage();
-};
+// Global (every page)
+registerPageModule({
+  name: "lineAnimation",
+  namespaces: "*",
+  once: true,
+  init: initLineAnimation,
+  cleanup: cleanupLineAnimation,
+});
+registerPageModule({ name: "joinedYearLabel", namespaces: "*", init: initJoinedYearLabel });
+registerPageModule({ name: "tabFromURL", namespaces: "*", once: true, init: initTabFromURL });
+registerPageModule({ name: "tabFlashReveal", namespaces: "*", init: initTabFlashReveal });
+registerPageModule({ name: "tabsFallback", namespaces: "*", init: initTabsFallback });
+registerPageModule({ name: "tabHeading", namespaces: "*", init: initTabHeading });
+registerPageModule({ name: "tabContentReveal", namespaces: "*", init: initTabContentReveal });
+registerPageModule({ name: "tabHeadingState", namespaces: "*", init: applyTabHeadingState });
+registerPageModule({
+  name: "localization",
+  namespaces: "*",
+  init: () => {
+    initLocalizationSwitcher();
+    restoreLocalizationCurrent();
+  },
+  cleanup: cleanupLocalizationState,
+});
+registerPageModule({ name: "borderGlow", namespaces: "*", init: initBorderGlow });
+registerPageModule({ name: "shinyBtn", namespaces: "*", init: initShinyBtn });
+registerPageModule({ name: "interviewCardArrow", namespaces: "*", init: initInterviewCardArrow });
+registerPageModule({ name: "readBlogsButton", namespaces: "*", init: initReadBlogsButton });
+// Finsweet restart last, mirroring the original ordering.
+registerPageModule({ name: "finsweetRestart", namespaces: "*", once: true, init: restartFinsweetList });
