@@ -1099,19 +1099,29 @@ function resetWebflow(data) {
   const ns = document
     .querySelector("[data-barba-namespace]")
     ?.getAttribute("data-barba-namespace");
+  initPage(ns, false);
+}
+
+// Single per-namespace init used by BOTH the first page load and every barba
+// navigation, written in the if (ns === 'home') style. isFirstLoad lets the
+// home UnicornStudio / FluidSimulation path differ (on a barba swap they must
+// be destroyed + re-initialized; on the very first load they self-init).
+function initPage(ns, isFirstLoad) {
   if (ns === "home") {
     if (typeof initSplitLines === "function") initSplitLines();
     if (typeof initBrandsVideoHover === "function") initBrandsVideoHover();
 
     setTimeout(() => {
       if (window.UnicornStudio) {
-        if (window.UnicornStudio.destroy) window.UnicornStudio.destroy();
-        const c = document.querySelector("[data-us-project]");
-        if (c) gsap.set(c, { opacity: 0 });
+        if (!isFirstLoad && window.UnicornStudio.destroy) {
+          window.UnicornStudio.destroy();
+          const c = document.querySelector("[data-us-project]");
+          if (c) gsap.set(c, { opacity: 0 });
+        }
 
         const initUS = () => {
           if (window.UnicornStudio.init) {
-            UnicornStudio.init();
+            if (!isFirstLoad) UnicornStudio.init();
             initUnicornFadeIn();
           }
         };
@@ -1129,13 +1139,15 @@ function resetWebflow(data) {
       }
     }, 200);
 
-    setTimeout(() => {
-      if (window.FluidSimulation?.destroy) window.FluidSimulation.destroy();
-      window._fluidSimAttempts = 0;
-      if (typeof initFluidSimulation === "function") {
-        initFluidSimulation();
-      }
-    }, 200);
+    if (!isFirstLoad) {
+      setTimeout(() => {
+        if (window.FluidSimulation?.destroy) window.FluidSimulation.destroy();
+        window._fluidSimAttempts = 0;
+        if (typeof initFluidSimulation === "function") {
+          initFluidSimulation();
+        }
+      }, 200);
+    }
   } else if (ns === "company") {
     if (typeof initCountUpAnimations === "function") initCountUpAnimations();
     if (typeof initCompanySwiper === "function") initCompanySwiper();
@@ -1150,29 +1162,28 @@ function resetWebflow(data) {
     if (typeof initCountUpAnimations === "function") initCountUpAnimations();
     if (typeof initPieChart === "function") initPieChart();
   }
+
   if (typeof window.initPageFromMain === "function") {
     window.initPageFromMain(ns);
   }
+
   setTimeout(() => {
     if (window.ScrollTrigger) ScrollTrigger.refresh(true);
-    const ns2 = document
-      .querySelector("[data-barba-namespace]")
-      ?.getAttribute("data-barba-namespace");
-    if (ns2 === "brands" && typeof initBrandsHeroReveal === "function")
+    if (ns === "brands" && typeof initBrandsHeroReveal === "function")
       initBrandsHeroReveal();
     if (typeof initFlashReveal === "function") initFlashReveal();
     if (typeof initCardReveal === "function") initCardReveal();
     if (typeof initColorReveal === "function") initColorReveal();
     if (typeof initMaskWipeReveal === "function") initMaskWipeReveal();
     if (
-      (ns2 === "brands" ||
-        ns2 === "home" ||
-        ns2 === "recruit" ||
-        ns2 === "interview-cms") &&
+      (ns === "brands" ||
+        ns === "home" ||
+        ns === "recruit" ||
+        ns === "interview-cms") &&
       typeof initBrandsButtonAnimation === "function"
     )
       initBrandsButtonAnimation();
-    if (ns2 === "home" && typeof initBestVentureButton === "function")
+    if (ns === "home" && typeof initBestVentureButton === "function")
       initBestVentureButton();
   }, 100);
 }
@@ -1204,7 +1215,7 @@ barba.hooks.after((data) => {
 });
 
 // Barba init
-barba.use(barbaPrefetch);
+if (typeof barbaPrefetch !== "undefined") barba.use(barbaPrefetch);
 
 barba.init({
   preventRunning: true,
@@ -1319,66 +1330,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   updateNavbarColors();
   if (typeof initFlashHover === "function") initFlashHover();
 
-  if (isHome && !sessionStorage.getItem("barba-navigated")) {
-    if (typeof initSiteLoader === "function") await initSiteLoader();
+  if (
+    isHome &&
+    !sessionStorage.getItem("barba-navigated") &&
+    typeof initSiteLoader === "function"
+  ) {
+    await initSiteLoader();
   } else {
+    // No site loader to run — make sure the loading overlay/lock is cleared,
+    // otherwise html.is-loading can keep the page from scrolling.
     const loader = document.getElementById("site-loader");
     if (loader) loader.style.display = "none";
     document.documentElement.classList.remove("is-loading");
   }
 
-  setTimeout(() => {
-    if (ns === "brands" && typeof initBrandsHeroReveal === "function")
-      initBrandsHeroReveal();
-    initFlashReveal();
-    initCardReveal();
-    initColorReveal();
-    if (typeof initMaskWipeReveal === "function") initMaskWipeReveal();
-    if (
-      (ns === "brands" ||
-        ns === "home" ||
-        ns === "recruit" ||
-        ns === "interview-cms") &&
-      typeof initBrandsButtonAnimation === "function"
-    )
-      initBrandsButtonAnimation();
-    if ((ns === "home" || ns === "brands") && typeof initBrandsVideoHover === "function") {
-      initBrandsVideoHover();
-
-      const initUS = () => {
-        if (window.UnicornStudio?.init) {
-          initUnicornFadeIn();
-        }
-      };
-      if (window.UnicornStudio?.isInitialized) initUS();
-      else {
-        const checkUS = setInterval(() => {
-          if (window.UnicornStudio?.isInitialized) {
-            clearInterval(checkUS);
-            initUS();
-          }
-        }, 100);
-        setTimeout(() => clearInterval(checkUS), 5000);
-      }
-    }
-    if (ns === "home" && typeof initSplitLines === "function") initSplitLines();
-    if (ns === "home" && typeof initBestVentureButton === "function")
-      initBestVentureButton();
-    if (ns === "recruit") {
-      if (typeof initRecruitSVG === "function") initRecruitSVG();
-      if (typeof initRecruitSwiper === "function") initRecruitSwiper();
-    }
-    if (ns === "numbers") {
-      if (typeof initCountUpAnimations === "function") initCountUpAnimations();
-      if (typeof initPieChart === "function") initPieChart();
-    }
-    if (ns === "company") {
-      if (typeof initDivisionImageSticky === "function") initDivisionImageSticky();
-    }
-    if (typeof window.initPageFromMain === "function") {
-      window.initPageFromMain(ns);
-    }
-  }, 100);
+  initPage(ns, true);
 });
 
 // Company swiper
