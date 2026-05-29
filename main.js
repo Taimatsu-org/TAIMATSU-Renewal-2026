@@ -1535,28 +1535,71 @@ function initBorderGlow() {
   });
 }
 
-function initShinyBtn() {
-  if (!window.gsap) return;
-  document.querySelectorAll(".shiny-btn-wrapper").forEach(function (box) {
-    if (box.dataset.shinyInit) return;
-    box.dataset.shinyInit = "1";
-    const arrows = box.querySelectorAll(".animation");
-    if (!arrows.length) return;
+function initHoverPlayOnce(selector, buildTween, flagKey) {
+  const key = flagKey || "hoverOnceInit";
+  document.querySelectorAll(selector).forEach(function (el) {
+    if (el.dataset[key]) return;
+    el.dataset[key] = "1";
     let animating = false;
-    box.addEventListener("mouseenter", function () {
-      if (animating) return;
+    el.addEventListener("mouseenter", function () {
+      if (animating || !window.gsap) return;
       animating = true;
+      buildTween(el, function () {
+        animating = false;
+      });
+    });
+  });
+}
+
+function initShinyBtn() {
+  initHoverPlayOnce(
+    ".shiny-btn-wrapper",
+    function (box, done) {
+      const arrows = box.querySelectorAll(".animation");
+      if (!arrows.length) {
+        done();
+        return;
+      }
       window.gsap.to(arrows, {
         xPercent: "+=100",
         duration: 0.5,
         ease: "power2.inOut",
         onComplete: function () {
           window.gsap.set(arrows, { xPercent: "-=100" });
-          animating = false;
+          done();
         },
       });
-    });
+    },
+    "shinyInit",
+  );
+}
+
+function initInterviewCardArrow() {
+  if (!window.gsap) return;
+  document.querySelectorAll(".interview-card").forEach(function (card) {
+    const arrows = card.querySelectorAll(".arrow-wrapper .interview-arrow");
+    if (arrows.length) window.gsap.set(arrows, { xPercent: -100 });
   });
+  initHoverPlayOnce(
+    ".interview-card",
+    function (card, done) {
+      const arrows = card.querySelectorAll(".arrow-wrapper .interview-arrow");
+      if (!arrows.length) {
+        done();
+        return;
+      }
+      window.gsap.to(arrows, {
+        xPercent: "+=100",
+        duration: 0.5,
+        ease: "power2.inOut",
+        onComplete: function () {
+          window.gsap.set(arrows, { xPercent: "-=100" });
+          done();
+        },
+      });
+    },
+    "interviewArrowInit",
+  );
 }
 
 // ============================================
@@ -1595,6 +1638,8 @@ Object.assign(window, {
   restoreLocalizationCurrent,
   initBorderGlow,
   initShinyBtn,
+  initHoverPlayOnce,
+  initInterviewCardArrow,
 });
 
 window.initPageFromMain = function (ns) {
@@ -1614,6 +1659,7 @@ window.initPageFromMain = function (ns) {
   restoreLocalizationCurrent();
   initBorderGlow();
   initShinyBtn();
+  initInterviewCardArrow();
   restartFinsweetList();
 };
 
