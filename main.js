@@ -266,44 +266,44 @@ function initRecruitPageFeatures() {
     };
     window.addEventListener("resize", window._staffVoicesResize);
 
-    // const staffVoicesMain = new Swiper(".staff-voices-swiper", {
-    //   slidesPerView: 1,
-    //   effect: "fade",
-    //   fadeEffect: { crossFade: true },
-    //   speed: 1000,
-    //   allowTouchMove: false,
-    //   autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
-    //   thumbs: { swiper: staffVoicesThumbs },
-    //   observer: true,
-    //   observeParents: true,
-    //   observeSlideChildren: true,
-    //   on: {
-    //     init() {
-    //       setupAllPaths();
-    //     },
-    //     afterInit() {
-    //       settleThumbProgress();
-    //     },
-    //     imagesReady() {
-    //       settleThumbProgress();
-    //     },
-    //     autoplayTimeLeft(s, time, progress) {
-    //       if (isSwitching || !activeThumbSvg) return;
-    //       activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
-    //     },
-    //     slideChangeTransitionStart() {
-    //       isSwitching = true;
-    //     },
-    //     slideChangeTransitionEnd() {
-    //       hideAllLines();
-    //       isSwitching = false;
-    //       refreshActiveThumbSvg();
-    //       if (window.innerWidth < 992) {
-    //         staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
-    //       }
-    //     },
-    //   },
-    // });
+    const staffVoicesMain = new Swiper(".staff-voices-swiper", {
+      slidesPerView: 1,
+      effect: "fade",
+      fadeEffect: { crossFade: true },
+      speed: 1000,
+      allowTouchMove: false,
+      autoplay: { delay: SLIDE_DURATION, disableOnInteraction: false },
+      thumbs: { swiper: staffVoicesThumbs },
+      observer: true,
+      observeParents: true,
+      observeSlideChildren: true,
+      on: {
+        init() {
+          setupAllPaths();
+        },
+        afterInit() {
+          settleThumbProgress();
+        },
+        imagesReady() {
+          settleThumbProgress();
+        },
+        autoplayTimeLeft(s, time, progress) {
+          if (isSwitching || !activeThumbSvg) return;
+          activeThumbSvg.style.clipPath = `inset(0 ${progress * 100}% 0 0)`;
+        },
+        slideChangeTransitionStart() {
+          isSwitching = true;
+        },
+        slideChangeTransitionEnd() {
+          hideAllLines();
+          isSwitching = false;
+          refreshActiveThumbSvg();
+          if (window.innerWidth < 992) {
+            staffVoicesThumbs.slideTo(staffVoicesMain.activeIndex, 300);
+          }
+        },
+      },
+    });
 
     window.staffVoicesMain = staffVoicesMain;
     window.staffVoicesThumbs = staffVoicesThumbs;
