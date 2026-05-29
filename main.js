@@ -1418,7 +1418,7 @@ function initCompanyPage() {
     (entries) => {
       entries.forEach((entry) => {
         const index = [...sections].indexOf(entry.target);
-        if (index === -1) return;
+        if (index === -1 || !shapes[index]) return;
         if (entry.isIntersecting) {
           shapes[index].classList.add("is-active");
           shapes.forEach((s, i) => {
