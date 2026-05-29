@@ -1318,6 +1318,20 @@ function tabRevealTargets(pane) {
   return pane && pane.children.length ? pane.children : null;
 }
 
+function scrollTabToTop() {
+  if (window.lenis?.scrollTo) {
+    window.lenis.scrollTo(0, { duration: 1 });
+  } else if (window.gsap?.to) {
+    window.gsap.to(window, {
+      duration: 1,
+      scrollTo: { y: 0, autoKill: false },
+      ease: "power2.inOut",
+    });
+  } else {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+
 function prepTabContentReveal(root) {
   if (!window.gsap) return;
   const scope = root || document;
