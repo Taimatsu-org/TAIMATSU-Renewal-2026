@@ -1,12 +1,17 @@
 window.FinsweetAttributes ||= [];
 window.FinsweetAttributes.push([
   "list",
-  (lists) => {
+  () => {
     const ns = document
       .querySelector("[data-barba-namespace]")
       ?.getAttribute("data-barba-namespace");
-    if (ns !== "recruit") return;
     setFinsweetFilterValues();
+    // Finsweet has now rendered the CMS list. initPageFromMain runs at a fixed
+    // time that can land BEFORE these items exist, so (re)run the page features
+    // that depend on the rendered content once it's actually in the DOM.
+    if (ns === "recruit") initRecruitPageFeatures();
+    else if (ns === "company") initCompanyPage();
+    else if (ns === "interview-cms") initInterviewTemplate();
   },
 ]);
 
