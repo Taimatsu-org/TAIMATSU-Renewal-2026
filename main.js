@@ -156,48 +156,50 @@ function initRecruitPageFeatures() {
     filterClearBtn.addEventListener("click", scrollToPositionListTop);
   }
 
-  // 3. Division description switcher
-  const descriptions = document.querySelectorAll(".division-desc");
-  const emptyMsg = document.querySelector(".description-empty");
-  if (descriptions.length) {
-    function update() {
-      const checkedRadio = document.querySelector(
-        '[fs-list-element="filters"] input[type="radio"]:checked',
-      );
-      let selectedDivision = null;
-      if (checkedRadio) {
-        const span = checkedRadio
-          .closest("label, .w-radio")
-          ?.querySelector("[fs-list-value]");
-        selectedDivision = span?.getAttribute("fs-list-value");
-      }
-      if (!selectedDivision) {
-        descriptions.forEach((d) => d.classList.remove("is-active"));
-        if (emptyMsg) emptyMsg.style.display = "";
-      } else {
-        descriptions.forEach((d) => {
-          d.classList.toggle(
-            "is-active",
-            d.getAttribute("data-division") === selectedDivision,
-          );
-        });
-        if (emptyMsg) emptyMsg.style.display = "none";
-      }
+  // 3. Division description switcher — delegated on the recruit container so it
+  // fires no matter when the filter radios / .division-desc actually render
+  // (direct binding missed them when they weren't in the DOM yet).
+  function updateDivisionDesc() {
+    const descriptions = document.querySelectorAll(".division-desc");
+    if (!descriptions.length) return;
+    const emptyMsg = document.querySelector(".description-empty");
+    const checkedRadio = document.querySelector(
+      '[fs-list-element="filters"] input[type="radio"]:checked',
+    );
+    let selectedDivision = null;
+    if (checkedRadio) {
+      const span = checkedRadio
+        .closest("label, .w-radio")
+        ?.querySelector("[fs-list-value]");
+      selectedDivision = span?.getAttribute("fs-list-value");
     }
-    document
-      .querySelectorAll('[fs-list-element="filters"] input[type="radio"]')
-      .forEach((input) => {
-        if (input.dataset.descSwitcherInit) return;
-        input.dataset.descSwitcherInit = "true";
-        input.addEventListener("change", () => setTimeout(update, 50));
+    if (!selectedDivision) {
+      descriptions.forEach((d) => d.classList.remove("is-active"));
+      if (emptyMsg) emptyMsg.style.display = "";
+    } else {
+      descriptions.forEach((d) => {
+        d.classList.toggle(
+          "is-active",
+          d.getAttribute("data-division") === selectedDivision,
+        );
       });
-    const clearBtn = document.querySelector('[fs-list-element="clear"]');
-    if (clearBtn && !clearBtn.dataset.descSwitcherInit) {
-      clearBtn.dataset.descSwitcherInit = "true";
-      clearBtn.addEventListener("click", () => setTimeout(update, 50));
+      if (emptyMsg) emptyMsg.style.display = "none";
     }
-    update();
   }
+  if (recruitContainer && !recruitContainer.dataset.descSwitcherDelegate) {
+    recruitContainer.dataset.descSwitcherDelegate = "true";
+    recruitContainer.addEventListener("change", function (e) {
+      if (e.target.closest('[fs-list-element="filters"] input[type="radio"]')) {
+        setTimeout(updateDivisionDesc, 50);
+      }
+    });
+    recruitContainer.addEventListener("click", function (e) {
+      if (e.target.closest('[fs-list-element="clear"]')) {
+        setTimeout(updateDivisionDesc, 50);
+      }
+    });
+  }
+  updateDivisionDesc();
 
   // 4. Staff Voices Swiper
   if (document.querySelector(".staff-voices-swiper")) {
