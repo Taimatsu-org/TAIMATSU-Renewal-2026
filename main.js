@@ -5,12 +5,8 @@ window.FinsweetAttributes.push([
     const ns = document
       .querySelector("[data-barba-namespace]")
       ?.getAttribute("data-barba-namespace");
+    if (ns !== "recruit") return;
     setFinsweetFilterValues();
-    // Finsweet has now rendered the CMS list. initPageFromMain runs at a fixed
-    // time that can land BEFORE these items exist, so (re)run the page features
-    // that depend on the rendered content once it's actually in the DOM.
-    if (ns === "recruit") initRecruitPageFeatures();
-    else if (ns === "interview-cms") initInterviewTemplate();
   },
 ]);
 
@@ -1666,18 +1662,12 @@ function initReadBlogsButton() {
 // ============================================
 // Finsweet List Restart
 // ============================================
-function restartFinsweetList() {
-  setFinsweetFilterValues();
-  const restart = window.FinsweetAttributes?.modules?.list?.restart;
-  if (typeof restart === "function") restart();
-}
 
 // ============================================
 // Exports
 // ============================================
 Object.assign(window, {
   setFinsweetFilterValues,
-  restartFinsweetList,
   initRecruitPageFeatures,
   cleanupRecruitSwiper,
   initInterviewTemplate,
@@ -1723,7 +1713,6 @@ window.initPageFromMain = function (ns) {
   initShinyBtn();
   initInterviewCardArrow();
   initReadBlogsButton();
-  restartFinsweetList();
 };
 
 window.cleanupPageFromMain = function (prevNs) {
