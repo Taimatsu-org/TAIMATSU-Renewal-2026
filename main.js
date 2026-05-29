@@ -1325,6 +1325,7 @@ function prepTabContentReveal(root) {
 
 function playTabContentReveal(pane) {
   if (!pane || !window.gsap) return;
+  window.gsap.killTweensOf(pane);
   window.gsap.fromTo(
     pane,
     { autoAlpha: 0, y: "2rem" },
@@ -1333,6 +1334,7 @@ function playTabContentReveal(pane) {
       y: "0rem",
       duration: 0.3,
       ease: "power2.inOut",
+      overwrite: "auto",
       clearProps: "transform,opacity,visibility",
     },
   );
