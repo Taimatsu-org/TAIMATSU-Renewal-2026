@@ -1691,6 +1691,7 @@ Object.assign(window, {
   initShinyBtn,
   initHoverPlayOnce,
   initInterviewCardArrow,
+  initReadBlogsButton,
 });
 
 window.initPageFromMain = function (ns) {
@@ -1711,6 +1712,7 @@ window.initPageFromMain = function (ns) {
   initBorderGlow();
   initShinyBtn();
   initInterviewCardArrow();
+  initReadBlogsButton();
   restartFinsweetList();
 };
 
