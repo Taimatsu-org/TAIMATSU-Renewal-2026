@@ -1575,11 +1575,6 @@ function initShinyBtn() {
 }
 
 function initInterviewCardArrow() {
-  if (!window.gsap) return;
-  document.querySelectorAll(".interview-card").forEach(function (card) {
-    const arrows = card.querySelectorAll(".arrow-wrapper .interview-arrow");
-    if (arrows.length) window.gsap.set(arrows, { xPercent: -100 });
-  });
   initHoverPlayOnce(
     ".interview-card",
     function (card, done) {
@@ -1588,15 +1583,19 @@ function initInterviewCardArrow() {
         done();
         return;
       }
-      window.gsap.to(arrows, {
-        xPercent: "+=100",
-        duration: 0.5,
-        ease: "power2.inOut",
-        onComplete: function () {
-          window.gsap.set(arrows, { xPercent: "-=100" });
-          done();
+      window.gsap.fromTo(
+        arrows,
+        { xPercent: -100 },
+        {
+          xPercent: 0,
+          duration: 0.5,
+          ease: "power2.inOut",
+          onComplete: function () {
+            window.gsap.set(arrows, { xPercent: -100 });
+            done();
+          },
         },
-      });
+      );
     },
     "interviewArrowInit",
   );
