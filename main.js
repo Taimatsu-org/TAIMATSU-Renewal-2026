@@ -1312,26 +1312,37 @@ function initTabsFallback() {
 }
 
 // ============================================
-// Tab IX2 Re-trigger
+// Tab Content Reveal
 // ============================================
-function retriggerTabIX2() {
-  const wf = window.Webflow;
-  if (!wf || typeof wf.require !== "function") return;
-  const ix2 = wf.require("ix2");
-  if (!ix2) return;
-  try {
-    ix2.destroy();
-    ix2.init();
-  } catch (e) {}
+function playTabContentReveal(pane) {
+  if (!pane || !window.gsap) return;
+  window.gsap.fromTo(
+    pane,
+    { autoAlpha: 0, y: "2rem" },
+    {
+      autoAlpha: 1,
+      y: "0rem",
+      duration: 0.3,
+      ease: "power2.out",
+      clearProps: "transform,opacity,visibility",
+    },
+  );
 }
 
-function initTabIX2Retrigger() {
-  document.querySelectorAll(".w-tab-link").forEach(function (link) {
-    if (link.dataset.ix2RetriggerInit) return;
-    link.dataset.ix2RetriggerInit = "true";
-    link.addEventListener("click", function () {
-      setTimeout(retriggerTabIX2, 100);
+function initTabContentReveal() {
+  document.querySelectorAll(".w-tabs").forEach(function (widget) {
+    widget.querySelectorAll(".w-tab-link").forEach(function (link) {
+      if (link.dataset.tabRevealInit) return;
+      link.dataset.tabRevealInit = "true";
+      link.addEventListener("click", function () {
+        setTimeout(function () {
+          playTabContentReveal(
+            widget.querySelector(".w-tab-pane.w--tab-active"),
+          );
+        }, 50);
+      });
     });
+    playTabContentReveal(widget.querySelector(".w-tab-pane.w--tab-active"));
   });
 }
 
@@ -1556,7 +1567,7 @@ Object.assign(window, {
   applyTabHeadingState,
   initTabHeading,
   initTabsFallback,
-  initTabIX2Retrigger,
+  initTabContentReveal,
   initCompanyPage,
   cleanupCompanyPage,
   initLocalizationSwitcher,
@@ -1577,7 +1588,7 @@ window.initPageFromMain = function (ns) {
   initTabFlashReveal();
   initTabsFallback();
   initTabHeading();
-  initTabIX2Retrigger();
+  initTabContentReveal();
   applyTabHeadingState();
   initLocalizationSwitcher();
   restoreLocalizationCurrent();
