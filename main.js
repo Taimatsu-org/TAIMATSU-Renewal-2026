@@ -1312,6 +1312,30 @@ function initTabsFallback() {
 }
 
 // ============================================
+// Tab IX2 Re-trigger
+// ============================================
+function retriggerTabIX2() {
+  const wf = window.Webflow;
+  if (!wf || typeof wf.require !== "function") return;
+  const ix2 = wf.require("ix2");
+  if (!ix2) return;
+  try {
+    ix2.destroy();
+    ix2.init();
+  } catch (e) {}
+}
+
+function initTabIX2Retrigger() {
+  document.querySelectorAll(".w-tab-link").forEach(function (link) {
+    if (link.dataset.ix2RetriggerInit) return;
+    link.dataset.ix2RetriggerInit = "true";
+    link.addEventListener("click", function () {
+      setTimeout(retriggerTabIX2, 100);
+    });
+  });
+}
+
+// ============================================
 // Company Page — Division SVG Color Effect
 // ============================================
 let _companyObserver = null;
@@ -1532,6 +1556,7 @@ Object.assign(window, {
   applyTabHeadingState,
   initTabHeading,
   initTabsFallback,
+  initTabIX2Retrigger,
   initCompanyPage,
   cleanupCompanyPage,
   initLocalizationSwitcher,
@@ -1552,6 +1577,7 @@ window.initPageFromMain = function (ns) {
   initTabFlashReveal();
   initTabsFallback();
   initTabHeading();
+  initTabIX2Retrigger();
   applyTabHeadingState();
   initLocalizationSwitcher();
   restoreLocalizationCurrent();
