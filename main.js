@@ -1332,7 +1332,7 @@ function playTabContentReveal(pane) {
     {
       autoAlpha: 1,
       y: "0rem",
-      duration: 0.3,
+      duration: 0.5,
       ease: "power2.inOut",
       overwrite: "auto",
       clearProps: "transform,opacity,visibility",
