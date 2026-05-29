@@ -152,13 +152,7 @@ function initRecruitPageFeatures() {
     filterClearBtn.addEventListener("click", scrollToPositionListTop);
   }
 
-  // 3. Finsweet filter values + restart
-  setFinsweetFilterValues();
-  if (typeof window.FinsweetAttributes?.modules?.list?.restart === "function") {
-    window.FinsweetAttributes.modules.list.restart();
-  }
-
-  // 4. Division description switcher
+  // 3. Division description switcher
   const descriptions = document.querySelectorAll(".division-desc");
   const emptyMsg = document.querySelector(".description-empty");
   if (descriptions.length) {
@@ -201,7 +195,7 @@ function initRecruitPageFeatures() {
     update();
   }
 
-  // 5. Staff Voices Swiper
+  // 4. Staff Voices Swiper
   if (document.querySelector(".staff-voices-swiper")) {
     cleanupRecruitSwiper();
 
@@ -1512,10 +1506,20 @@ function initShinyBtn() {
 }
 
 // ============================================
+// Finsweet List Restart
+// ============================================
+function restartFinsweetList() {
+  setFinsweetFilterValues();
+  const restart = window.FinsweetAttributes?.modules?.list?.restart;
+  if (typeof restart === "function") restart();
+}
+
+// ============================================
 // Exports
 // ============================================
 Object.assign(window, {
   setFinsweetFilterValues,
+  restartFinsweetList,
   initRecruitPageFeatures,
   cleanupRecruitSwiper,
   initInterviewTemplate,
@@ -1553,6 +1557,7 @@ window.initPageFromMain = function (ns) {
   restoreLocalizationCurrent();
   initBorderGlow();
   initShinyBtn();
+  restartFinsweetList();
 };
 
 window.cleanupPageFromMain = function (prevNs) {
