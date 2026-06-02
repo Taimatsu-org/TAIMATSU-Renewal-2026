@@ -129,7 +129,7 @@
       'click',
       (e) => {
         const link = e.target.closest('a[href^="#"]');
-        if (link && !link.matches('.w-tab-link')) {
+        if (link && !link.matches('.w-tab-link') && !link.matches('.toc-link')) {
           const targetId = link.getAttribute('href').substring(1);
           const target = document.getElementById(targetId);
           if (target) {
@@ -1131,7 +1131,7 @@
     'click',
     (e) => {
       const link = e.target.closest('a[href^="#"]');
-      if (link && !link.matches('.w-tab-link')) {
+      if (link && !link.matches('.w-tab-link') && !link.matches('.toc-link')) {
         const targetId = link.getAttribute('href').substring(1);
         const target = document.getElementById(targetId);
         if (target) {

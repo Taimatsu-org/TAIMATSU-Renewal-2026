@@ -605,6 +605,19 @@ function initInterviewTemplate() {
             e.stopImmediatePropagation();
             const href =
               link.getAttribute("href") || link.getAttribute("data-href") || "";
+            const scrollToY = (y) => {
+              if (window.lenis?.scrollTo) {
+                window.lenis.scrollTo(y, { duration: 1 });
+              } else if (window.gsap?.to) {
+                window.gsap.to(window, {
+                  duration: 1,
+                  scrollTo: y,
+                  ease: "power2.inOut",
+                });
+              } else {
+                window.scrollTo({ top: y, behavior: "smooth" });
+              }
+            };
             const horizontalIdx = horizontalLinkHrefs.indexOf(href);
             if (horizontalIdx !== -1) {
               const outer = document.querySelector(
@@ -615,15 +628,7 @@ function initInterviewTemplate() {
                   horizontalIdx / (horizontalLinkHrefs.length - 1);
                 const scrollable = outer.offsetHeight - window.innerHeight;
                 const targetY = outer.offsetTop + progress * scrollable;
-                if (window.gsap) {
-                  window.gsap.to(window, {
-                    duration: 1,
-                    scrollTo: targetY,
-                    ease: "power2.inOut",
-                  });
-                } else {
-                  window.scrollTo({ top: targetY, behavior: "smooth" });
-                }
+                scrollToY(targetY);
               }
               return;
             }
@@ -632,15 +637,7 @@ function initInterviewTemplate() {
             if (!target) return;
             const targetY =
               target.getBoundingClientRect().top + window.pageYOffset - 80;
-            if (window.gsap) {
-              window.gsap.to(window, {
-                duration: 1,
-                scrollTo: targetY,
-                ease: "power2.inOut",
-              });
-            } else {
-              window.scrollTo({ top: targetY, behavior: "smooth" });
-            }
+            scrollToY(targetY);
           },
           true,
         );
