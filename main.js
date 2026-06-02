@@ -633,10 +633,15 @@ function initInterviewTemplate() {
                 ".horizontal-scroll-section-outer",
               );
               if (outer) {
-                const progress =
-                  horizontalIdx / (horizontalLinkHrefs.length - 1);
-                const scrollable = outer.offsetHeight - window.innerHeight;
-                const targetY = outer.offsetTop + progress * scrollable;
+                const denom = Math.max(1, horizontalLinkHrefs.length - 1);
+                const progress = horizontalIdx / denom;
+                const scrollable = Math.max(
+                  0,
+                  outer.offsetHeight - window.innerHeight,
+                );
+                const outerDocTop =
+                  outer.getBoundingClientRect().top + window.pageYOffset;
+                const targetY = outerDocTop + progress * scrollable;
                 scrollToY(targetY);
               }
               return;
