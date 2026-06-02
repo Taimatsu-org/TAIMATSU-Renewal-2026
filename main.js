@@ -377,6 +377,14 @@ function cleanupInterviewTemplate() {
     window.removeEventListener("scroll", c.scrollHandler);
     c.scrollHandler = null;
   }
+  if (c.lenisScrollHandler) {
+    if (window.lenis?.off) {
+      try {
+        window.lenis.off("scroll", c.lenisScrollHandler);
+      } catch (e) {}
+    }
+    c.lenisScrollHandler = null;
+  }
   if (c.resizeHandlers) {
     c.resizeHandlers.forEach((fn) => window.removeEventListener("resize", fn));
     c.resizeHandlers = null;
@@ -429,11 +437,11 @@ function initInterviewTemplate() {
         CURVE_Y = 3.109;
       const horizontalLinkHrefs = [
         "#09-00",
-        "#10-30",
+        "#11-00",
         "#13-00",
         "#15-00",
+        "#16-30",
         "#18-00",
-        "#20-00",
       ];
 
       function xOf(link) {
@@ -719,6 +727,10 @@ function initInterviewTemplate() {
       window._tplCleanup.resizeHandlers.push(update);
       window.addEventListener("scroll", onScroll, { passive: true });
       window.addEventListener("resize", update);
+      if (window.lenis?.on) {
+        window.lenis.on("scroll", onScroll);
+        window._tplCleanup.lenisScrollHandler = onScroll;
+      }
       setTimeout(update, 100);
     }
   }
