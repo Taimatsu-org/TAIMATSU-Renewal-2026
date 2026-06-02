@@ -435,14 +435,9 @@ function initInterviewTemplate() {
         BEND = 12,
         CTRL_OFFSET = 1.664,
         CURVE_Y = 3.109;
-      const horizontalLinkHrefs = [
-        "#09-00",
-        "#11-00",
-        "#13-00",
-        "#15-00",
-        "#16-30",
-        "#18-00",
-      ];
+      const horizontalLinkHrefs = links
+        .map((l) => l.getAttribute("href") || l.getAttribute("data-href") || "")
+        .filter((h) => /^#\d{1,2}-\d{2}$/.test(h));
 
       function xOf(link) {
         return link.getAttribute("data-level") === "header" ? X_HEADER : X_SUB;
@@ -674,14 +669,11 @@ function initInterviewTemplate() {
   if (outer && pin && hTrack) {
     const items = hTrack.querySelectorAll(".day-to-day-card");
     if (items.length) {
-      const horizontalLinkHrefs = [
-        "#09-00",
-        "#11-00",
-        "#13-00",
-        "#15-00",
-        "#16-30",
-        "#18-00",
-      ];
+      const horizontalLinkHrefs = Array.from(
+        document.querySelectorAll(".toc-link"),
+      )
+        .map((l) => l.getAttribute("href") || l.getAttribute("data-href") || "")
+        .filter((h) => /^#\d{1,2}-\d{2}$/.test(h));
       let lastActiveIdx = -2;
       let ticking = false;
 
