@@ -702,10 +702,10 @@
     function init() {
       els.forEach((el) => {
         if (el.hasAttribute('data-lottie-initialized')) return;
+        const src = el.getAttribute('data-src');
+        if (!src) return; // no source — skip WITHOUT clearing (don't break native Lottie)
         el.innerHTML = '';
         el.setAttribute('data-lottie-initialized', 'true');
-        const src = el.getAttribute('data-src');
-        if (!src) return;
         const anim = lottie.loadAnimation({ container: el, renderer: el.getAttribute('data-renderer') || 'svg', loop: el.getAttribute('data-loop') === '1', autoplay: false, path: src });
         lottieInstances.push(anim);
         ScrollTrigger.create({ trigger: el, start: 'top 90%', onEnter: () => anim.play(), once: true });
@@ -937,6 +937,9 @@
       if (typeof initMaskWipeReveal === 'function') initMaskWipeReveal();
       if ((ns2 === 'brands' || ns2 === 'home' || ns2 === 'recruit' || ns2 === 'interview-cms') && typeof initBrandsButtonAnimation === 'function') initBrandsButtonAnimation();
       if (ns2 === 'home' && typeof initBestVentureButton === 'function') initBestVentureButton();
+      // re-render Lottie on the new container (its ScrollTriggers survive the
+      // kill above because we create them here, after it)
+      if (typeof reinitWebflowLottie === 'function') reinitWebflowLottie();
     }, 100);
   }
   // Barba hooks
@@ -1092,6 +1095,9 @@
       if (typeof window.initPageFromMain === 'function') {
         window.initPageFromMain(ns);
       }
+      // render Lottie on first load (the only renderer in this codebase — it
+      // was defined but never called, so Lottie never got drawn)
+      if (typeof reinitWebflowLottie === 'function') reinitWebflowLottie();
     }, 100);
   });
   //swiper init

@@ -10,6 +10,22 @@ window.FinsweetAttributes.push([
   },
 ]);
 
+// The staff-voices swiper uses a fade effect, which stacks every slide in the
+// same place — so a click always lands on the topmost (last) slide and every
+// link goes to the last article. Make ONLY the active slide clickable so the
+// click reaches the slide you actually see. (Covers recruit + interview.)
+(function () {
+  if (document.getElementById("staff-voices-clickfix")) return;
+  const st = document.createElement("style");
+  st.id = "staff-voices-clickfix";
+  st.textContent =
+    ".staff-voices-swiper .swiper-slide{pointer-events:none}" +
+    ".staff-voices-swiper .swiper-slide a{pointer-events:none!important}" +
+    ".staff-voices-swiper .swiper-slide-active{pointer-events:auto}" +
+    ".staff-voices-swiper .swiper-slide-active a{pointer-events:auto!important}";
+  (document.head || document.documentElement).appendChild(st);
+})();
+
 function setFinsweetFilterValues() {
   document
     .querySelectorAll('[fs-list-element="filters"] input[type="radio"]')
@@ -1158,16 +1174,41 @@ function initTabFromURL() {
   const params = new URLSearchParams(window.location.search);
   const tabId = params.get("tab");
   if (!tabId) return;
-  const tabLink = document.querySelector(`.w-tab-link[data-tab-id="${tabId}"]`);
-  if (!tabLink) return;
-  tabLink.click();
-  const url = new URL(window.location);
-  url.searchParams.delete("tab");
-  history.replaceState(
-    null,
-    null,
-    url.pathname + (url.search === "?" ? "" : url.search),
-  );
+
+  const cleanURL = () => {
+    const url = new URL(window.location);
+    url.searchParams.delete("tab");
+    history.replaceState(
+      null,
+      null,
+      url.pathname + (url.search === "?" ? "" : url.search),
+    );
+  };
+
+  let attempts = 0;
+  const maxAttempts = 20;
+  const tryActivate = () => {
+    const tabLink = document.querySelector(
+      `.w-tab-link[data-tab-id="${tabId}"]`,
+    );
+    if (tabLink) {
+      if (tabLink.classList.contains("w--current")) {
+        cleanURL();
+        return;
+      }
+      tabLink.click();
+      requestAnimationFrame(() => {
+        if (tabLink.classList.contains("w--current")) {
+          cleanURL();
+        } else if (attempts++ < maxAttempts) {
+          setTimeout(tryActivate, 100);
+        }
+      });
+    } else if (attempts++ < maxAttempts) {
+      setTimeout(tryActivate, 100);
+    }
+  };
+  tryActivate();
 }
 
 function initJoinedYearLabel() {
