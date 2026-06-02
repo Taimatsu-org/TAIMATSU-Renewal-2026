@@ -385,6 +385,12 @@ function cleanupInterviewTemplate() {
     }
     c.lenisScrollHandler = null;
   }
+  if (c.gsapTickerHandler && window.gsap?.ticker) {
+    try {
+      window.gsap.ticker.remove(c.gsapTickerHandler);
+    } catch (e) {}
+    c.gsapTickerHandler = null;
+  }
   if (c.resizeHandlers) {
     c.resizeHandlers.forEach((fn) => window.removeEventListener("resize", fn));
     c.resizeHandlers = null;
@@ -722,6 +728,10 @@ function initInterviewTemplate() {
       if (window.lenis?.on) {
         window.lenis.on("scroll", onScroll);
         window._tplCleanup.lenisScrollHandler = onScroll;
+      }
+      if (window.gsap?.ticker) {
+        window.gsap.ticker.add(update);
+        window._tplCleanup.gsapTickerHandler = update;
       }
       setTimeout(update, 100);
     }
