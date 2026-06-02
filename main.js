@@ -676,11 +676,11 @@ function initInterviewTemplate() {
     if (items.length) {
       const horizontalLinkHrefs = [
         "#09-00",
-        "#10-30",
+        "#11-00",
         "#13-00",
         "#15-00",
+        "#16-30",
         "#18-00",
-        "#20-00",
       ];
       let lastActiveIdx = -2;
       let ticking = false;
