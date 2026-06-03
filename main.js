@@ -172,33 +172,10 @@ function initRecruitPageFeatures() {
       field.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    function scrollToEntryTarget(y) {
-      if (window.lenis?.scrollTo) {
-        window.lenis.scrollTo(y, { duration: 1 });
-      } else if (window.gsap?.to) {
-        window.gsap.to(window, {
-          duration: 1,
-          scrollTo: { y, autoKill: false },
-          ease: "power2.inOut",
-        });
-      } else {
-        window.scrollTo({ top: y, behavior: "smooth" });
-      }
-    }
-
     recruitContainer.addEventListener("click", function (e) {
       const btn = e.target.closest(".entry-button[data-position]");
       if (!btn) return;
       fillContactSubject(btn);
-
-      const href = btn.getAttribute("href") || "";
-      const id = href.startsWith("#") ? href.slice(1) : "";
-      const target = id ? document.getElementById(id) : null;
-      if (!target) return;
-      e.preventDefault();
-      const targetY =
-        target.getBoundingClientRect().top + window.pageYOffset - 80;
-      scrollToEntryTarget(targetY);
     });
   }
 
