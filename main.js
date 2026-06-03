@@ -115,6 +115,7 @@ function initRecruitPageFeatures() {
     recruitContainer.addEventListener("click", function (e) {
       const trigger = e.target.closest(".position-accordion-trigger");
       if (!trigger) return;
+      if (e.target.closest(".entry-button")) return;
       e.stopPropagation();
       const clickedItem = trigger.closest(".position-item");
       if (!clickedItem) return;
