@@ -7,8 +7,16 @@ window.FinsweetAttributes.push([
       ?.getAttribute("data-barba-namespace");
     if (ns !== "recruit") return;
     setFinsweetFilterValues();
+    fillEmptyPositionDescriptions();
   },
 ]);
+
+function fillEmptyPositionDescriptions() {
+  const INVISIBLE = /[\s​‌‍﻿]/g;
+  document.querySelectorAll(".position-description").forEach((el) => {
+    if (!el.textContent.replace(INVISIBLE, "")) el.textContent = "-";
+  });
+}
 
 // The staff-voices swiper uses a fade effect, which stacks every slide in the
 // same place — so a click always lands on the topmost (last) slide and every
@@ -129,6 +137,45 @@ function initRecruitPageFeatures() {
         if (clickedIcon) clickedIcon.classList.add("is-open");
         scrollToY(targetY);
       }
+    });
+  }
+
+  if (recruitContainer && !recruitContainer.dataset.entryDelegate) {
+    recruitContainer.dataset.entryDelegate = "true";
+
+    function getCurrentLocale() {
+      const m = window.location.pathname.match(/^\/([a-z]{2})(\/|$)/);
+      return m ? m[1] : "default";
+    }
+    function buildEntrySubject(position) {
+      const pos = (position || "").trim();
+      if (!pos) return "";
+      if (getCurrentLocale() === "en") {
+        return `I'd like to apply for the ${pos} position.`;
+      }
+      return `${pos}に応募したいです`;
+    }
+    function fillContactSubject(btn) {
+      const position = btn?.dataset.position || "";
+      const subject = buildEntrySubject(position);
+      if (!subject) return;
+      const form = document.getElementById("wf-form-Contact-Form");
+      if (!form) return;
+      const field =
+        form.querySelector('[name="Subject"]') ||
+        form.querySelector('[name="subject"]') ||
+        form.querySelector("#Subject") ||
+        form.querySelector("#subject");
+      if (!field) return;
+      field.value = subject;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    recruitContainer.addEventListener("click", function (e) {
+      const btn = e.target.closest(".entry-button[data-position]");
+      if (!btn) return;
+      fillContactSubject(btn);
     });
   }
 
