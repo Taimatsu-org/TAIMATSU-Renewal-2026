@@ -34,6 +34,54 @@ function fillEmptyPositionDescriptions() {
   (document.head || document.documentElement).appendChild(st);
 })();
 
+(function () {
+  if (window.__hashAnchorScrollInstalled) return;
+  window.__hashAnchorScrollInstalled = true;
+
+  document.addEventListener(
+    "click",
+    function (e) {
+      const link = e.target.closest('a[href^="#"]');
+      if (!link) return;
+      if (link.matches(".w-tab-link")) return;
+      const href = link.getAttribute("href");
+      if (!href || href === "#") return;
+      const target = document.getElementById(href.substring(1));
+      if (!target) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (window.lenis?.scrollTo) {
+        window.lenis.scrollTo(target);
+      } else if (window.gsap?.to) {
+        window.gsap.to(window, {
+          duration: 1,
+          scrollTo: { y: target, autoKill: true },
+          ease: "power2.inOut",
+        });
+      } else {
+        target.scrollIntoView({ behavior: "smooth" });
+      }
+
+      setTimeout(() => {
+        if (window.location.hash) {
+          history.replaceState(null, "", window.location.pathname);
+        }
+      }, 0);
+    },
+    true, // capture
+  );
+
+  window.addEventListener("hashchange", () => {
+    history.replaceState(null, "", window.location.pathname);
+  });
+
+  if (window.location.hash) {
+    history.replaceState(null, "", window.location.pathname);
+  }
+})();
+
 function setFinsweetFilterValues() {
   document
     .querySelectorAll('[fs-list-element="filters"] input[type="radio"]')
