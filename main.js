@@ -141,43 +141,46 @@ function initRecruitPageFeatures() {
     });
   }
 
-  if (recruitContainer && !recruitContainer.dataset.entryDelegate) {
-    recruitContainer.dataset.entryDelegate = "true";
+  if (!window.__entrySubjectHandlerInstalled) {
+    window.__entrySubjectHandlerInstalled = true;
 
-    function getCurrentLocale() {
-      const m = window.location.pathname.match(/^\/([a-z]{2})(\/|$)/);
-      return m ? m[1] : "default";
-    }
-    function buildEntrySubject(position) {
-      const pos = (position || "").trim();
-      if (!pos) return "";
-      if (getCurrentLocale() === "en") {
-        return `I'd like to apply for the ${pos} position.`;
-      }
-      return `${pos}に応募したいです`;
-    }
-    function fillContactSubject(btn) {
-      const position = btn?.dataset.position || "";
-      const subject = buildEntrySubject(position);
-      if (!subject) return;
-      const form = document.getElementById("wf-form-Contact-Form");
-      if (!form) return;
-      const field =
-        form.querySelector('[name="Subject"]') ||
-        form.querySelector('[name="subject"]') ||
-        form.querySelector("#Subject") ||
-        form.querySelector("#subject");
-      if (!field) return;
-      field.value = subject;
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-      field.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+    document.addEventListener(
+      "click",
+      function (e) {
+        const btn = e.target.closest(".entry-button[data-position]");
+        if (!btn) return;
 
-    recruitContainer.addEventListener("click", function (e) {
-      const btn = e.target.closest(".entry-button[data-position]");
-      if (!btn) return;
-      fillContactSubject(btn);
-    });
+        const pos = (btn.dataset.position || "").trim();
+        if (!pos) return;
+
+        const m = window.location.pathname.match(/^\/([a-z]{2})(\/|$)/);
+        const locale = m ? m[1] : "default";
+        const subject =
+          locale === "en"
+            ? `I'd like to apply for the ${pos} position.`
+            : `${pos}に応募したいです`;
+
+        const form = document.getElementById("wf-form-Contact-Form");
+        if (!form) {
+          console.warn("[entry] #wf-form-Contact-Form not found at click time");
+          return;
+        }
+        const field =
+          form.querySelector('[name="Subject"]') ||
+          form.querySelector('[name="subject"]') ||
+          form.querySelector("#Subject") ||
+          form.querySelector("#subject");
+        if (!field) {
+          console.warn("[entry] Subject field not found inside form");
+          return;
+        }
+
+        field.value = subject;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      true, // capture phase
+    );
   }
 
   // 2. Division filter — Close + scroll to list top
