@@ -147,31 +147,22 @@ function initRecruitPageFeatures() {
     document.addEventListener(
       "click",
       function (e) {
-        const btn = e.target.closest(".entry-button[data-position]");
+        const btn = e.target.closest(".entry-button");
         if (!btn) return;
 
-        const pos = (btn.dataset.position || "").trim();
-        if (!pos) return;
+        const position = btn.getAttribute("data-position");
+        const messageField = document.getElementById("Subject");
+        if (!position || !messageField) return;
 
-        const m = window.location.pathname.match(/^\/([a-z]{2})(\/|$)/);
-        const locale = m ? m[1] : "default";
-        const subject =
-          locale === "en"
-            ? `I'd like to apply for the ${pos} position.`
-            : `${pos}に応募したいです`;
+        const lang = document.documentElement.lang || "";
+        const newValue = lang.startsWith("en")
+          ? `I would like to apply for ${position}`
+          : `${position} に応募したいと考えております。`;
 
-        const form = document.getElementById("wf-form-Contact-Form");
-        if (!form) return;
-        const field =
-          form.querySelector('[name="Subject"]') ||
-          form.querySelector('[name="subject"]') ||
-          form.querySelector("#Subject") ||
-          form.querySelector("#subject");
-        if (!field) return;
-
-        field.value = subject;
-        field.dispatchEvent(new Event("input", { bubbles: true }));
-        field.dispatchEvent(new Event("change", { bubbles: true }));
+        messageField.focus();
+        messageField.value = newValue;
+        messageField.dispatchEvent(new Event("input", { bubbles: true }));
+        messageField.dispatchEvent(new Event("change", { bubbles: true }));
       },
       true, // capture phase
     );
