@@ -524,7 +524,7 @@ function initCountUpAnimations() {
     [1, 2023, { useGrouping: false }],
     [2, 274],
     [3, 5],
-    [4, 200],
+    [4, 300],
     [5, 57],
     [6, 43],
     [7, 20],
@@ -542,8 +542,8 @@ function initCountUpAnimations() {
     [19, 166],
     [20, 15],
     [21, 12],
-    [22, 200],
-    [23, 42],
+    [22, 300],
+    [23, 56],
     [24, 9],
   ];
   nums.forEach((n) => {
