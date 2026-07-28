@@ -533,7 +533,7 @@ function initCountUpAnimations() {
     [10, 239],
     [11, 126],
     [12, 1],
-    [13, 17],
+    [13, 19],
     [14, 9000, { useGrouping: false }],
     [15, 4.9, { decimalPlaces: 1 }],
     [16, 80],
